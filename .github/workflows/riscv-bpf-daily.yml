@@ -60,15 +60,16 @@ jobs:
 
       - name: Run BPF vmtest
         id: test
-        # `if: always()` is set on the next step instead; we want this step
-        # to be the gating failure for the issue step.
+        # Stream the test output live to the Actions log (tee) while keeping a
+        # copy in bpf_vmtest.stdout. `if: always()` is on the later steps so the
+        # issue step still fires when this exits non-zero.
         run: |
           docker run --rm \
             -v "${PWD}:/repo" \
             -e BPF_REF="${{ inputs.bpf_ref }}" \
             "${{ env.IMAGE }}:latest" \
             bash /repo/scripts/run_bpf_tests.sh "${{ inputs.bpf_ref }}" \
-            > bpf_vmtest.stdout 2>&1 || true
+            2>&1 | tee bpf_vmtest.stdout || true
 
           # Pull the in-container logs back to the runner.
           docker run --rm \
