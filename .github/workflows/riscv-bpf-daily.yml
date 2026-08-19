@@ -64,7 +64,10 @@ jobs:
         # copy in bpf_vmtest.stdout. `if: always()` is on the later steps so the
         # issue step still fires when this exits non-zero.
         run: |
-          docker run --rm \
+          # --privileged: vmtest.sh sets up loop devices and mounts the rootfs
+          # to populate it; that needs real root + CAP_SYS_ADMIN, not the
+          # default unprivileged container.
+          docker run --rm --privileged \
             -v "${PWD}:/repo" \
             -e BPF_REF="${{ inputs.bpf_ref }}" \
             "${{ env.IMAGE }}:latest" \
