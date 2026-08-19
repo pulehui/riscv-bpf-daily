@@ -120,21 +120,13 @@ jobs:
           script: |
             const fs = require('fs');
 
-            // --- run date in +08:00, ISO YYYY-MM-DD ---
-            // run_started_at is UTC; convert to Asia/Shanghai (UTC+8).
-            const runDate = new Date(context.runStartedAt);
-            const d8 = new Date(runDate.getTime() + 8 * 3600 * 1000);
-            const dateStr = d8.getUTCFullYear() + '-' +
-              String(d8.getUTCMonth() + 1).padStart(2, '0') + '-' +
-              String(d8.getUTCDate()).padStart(2, '0');
-
             // --- 12-char commit: prefer the bpf commit actually tested;
             //     fall back to this repo's commit if clone failed early ---
             const bpfCommit40 = '${{ steps.test.outputs.bpf_commit }}';
             const repoCommit40 = context.sha;
             const commit12 = (bpfCommit40 || repoCommit40).slice(0, 12);
 
-            const title = `Daily failed at ${dateStr} commit ${commit12}`;
+            const title = `Daily failed at commit ${commit12}`;
 
             // --- focused error logs: the "All error logs:" block ---
             let errorLogs = '';
