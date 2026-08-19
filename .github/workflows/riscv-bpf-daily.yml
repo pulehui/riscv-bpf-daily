@@ -1,0 +1,149 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# RISC-V BPF daily test run.
+#
+# Manually triggered (workflow_dispatch). Builds the riscv-bpf-vmtest image
+# (cached via GitHub Actions cache, pushed to GHCR so it survives across
+# runs), runs the BPF selftests test_progs suite for riscv64 inside QEMU,
+# and opens/comments a GitHub issue when tests fail.
+
+name: riscv-bpf-daily
+
+on:
+  workflow_dispatch:
+    inputs:
+      bpf_ref:
+        description: "kernel-patches/bpf ref to test (branch or tag)"
+        required: false
+        default: "master"
+
+permissions:
+  contents: read
+  packages: write
+  issues: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/riscv-bpf-vmtest
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.riscv-bpf-vmtest
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          # GitHub Actions cache: unchanged layers are reused, so the
+          # expensive qemu/pahole/rootfs layers are rebuilt only when the
+          # Dockerfile or context actually changes.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run BPF vmtest
+        id: test
+        # `if: always()` is set on the next step instead; we want this step
+        # to be the gating failure for the issue step.
+        run: |
+          docker run --rm \
+            -v "${PWD}:/repo" \
+            -e BPF_REF="${{ inputs.bpf_ref }}" \
+            "${{ env.IMAGE }}:latest" \
+            bash /repo/scripts/run_bpf_tests.sh "${{ inputs.bpf_ref }}" \
+            > bpf_vmtest.stdout 2>&1 || true
+
+          # Pull the in-container log back to the runner.
+          docker run --rm \
+            -v "${PWD}:/out" \
+            "${{ env.IMAGE }}:latest" \
+            cat /workspace/bpf_vmtest.log > bpf_vmtest.log 2>/dev/null || true
+
+          echo "===== runner stdout (trimmed summary) ====="
+          tail -n 220 bpf_vmtest.stdout || true
+          echo "============================================"
+
+          # The script writes the real exit code as the last line:
+          #   "vmtest.sh exit code: N". If we cannot find it or it is non-zero,
+          # mark the step failed so the issue step fires.
+          rc=$(grep -E '^vmtest\.sh exit code: ' bpf_vmtest.stdout | tail -1 | awk '{print $NF}')
+          if [[ -z "${rc}" || "${rc}" != "0" ]]; then
+            echo "test_status=failure" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "test_status=success" >> "$GITHUB_OUTPUT"
+
+      - name: Upload test log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bpf_vmtest-log
+          path: |
+            bpf_vmtest.log
+            bpf_vmtest.stdout
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Create or update failure issue
+        if: always() && steps.test.outputs.test_status == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ISSUE_TITLE = "BPF vmtest failure (riscv64) — daily";
+            const body = [
+              `The daily RISC-V BPF vmtest run failed.`,
+              ``,
+              `**Workflow run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `**bpf ref tested:** \`${{ inputs.bpf_ref }}\``,
+              `**Commit:** \`${context.sha}\``,
+              ``,
+              `### test_progs summary (tail)`,
+              `\`\`\``,
+              require('fs').readFileSync('bpf_vmtest.stdout', 'utf8')
+                .split('\n').slice(-220).join('\n'),
+              `\`\`\``,
+              ``,
+              `Full log attached as the \`bpf_vmtest-log\` artifact of run ${context.runId}.`,
+            ].join('\n');
+
+            // Find an existing open tracking issue to comment on (avoid spam).
+            const { data: issues } = await github.rest.issues.listForRepo({
+              ...context.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const existing = issues.find(i => i.title === ISSUE_TITLE);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: existing.number,
+                body,
+              });
+              core.info(`Commented on issue #${existing.number}`);
+            } else {
+              const { data: issue } = await github.rest.issues.create({
+                ...context.repo,
+                title: ISSUE_TITLE,
+                body,
+                labels: ['bpf-vmtest', 'riscv64'],
+              });
+              core.info(`Created issue #${issue.number}`);
+            }
