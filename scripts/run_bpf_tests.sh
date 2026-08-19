@@ -9,7 +9,7 @@
 #   run_bpf_tests.sh [BPF_REF]
 #
 #   BPF_REF  - git ref/branch of github.com/kernel-patches/bpf to clone
-#              (default: master)
+#              (default: bpf-next, the repo's default branch)
 #
 # Outputs:
 #   /workspace/bpf_vmtest.log   full vmtest + test_progs output
@@ -24,7 +24,7 @@
 
 set -euo pipefail
 
-BPF_REF="${1:-master}"
+BPF_REF="${1:-bpf-next}"
 BPF_URL="https://github.com/kernel-patches/bpf"
 
 # Rootfs image baked into the container by the Dockerfile (COPY image/... /root).
@@ -46,6 +46,10 @@ if [[ ! -d bpf/.git ]]; then
     echo "::endgroup::"
 fi
 cd "${WORKSPACE}/bpf"
+
+# Record the exact commit that was tested (shallow clone => HEAD is the tip).
+BPF_SHA="$(git rev-parse HEAD)"
+echo "bpf_commit=${BPF_SHA}"
 
 # --------------------------------------------------------------------------
 # 2. Build the comma-separated denylist from DENYLIST.riscv64.
@@ -89,6 +93,7 @@ echo "::endgroup::"
 echo "===== test_progs summary (last 200 lines) ====="
 tail -n 200 "${LOGFILE}"
 echo "================================================"
+echo "bpf ref tested: ${BPF_REF} @ ${BPF_SHA}"
 echo "vmtest.sh exit code: ${TEST_RC}"
 
 exit "${TEST_RC}"

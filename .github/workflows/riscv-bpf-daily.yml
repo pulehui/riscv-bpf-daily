@@ -15,7 +15,7 @@ on:
       bpf_ref:
         description: "kernel-patches/bpf ref to test (branch or tag)"
         required: false
-        default: "master"
+        default: "bpf-next"
 
 permissions:
   contents: read
@@ -84,6 +84,9 @@ jobs:
           #   "vmtest.sh exit code: N". If we cannot find it or it is non-zero,
           # mark the step failed so the issue step fires.
           rc=$(grep -E '^vmtest\.sh exit code: ' bpf_vmtest.stdout | tail -1 | awk '{print $NF}')
+          # The bpf commit actually tested (line "bpf ref tested: <ref> @ <sha>").
+          bpf_commit=$(grep -E '^bpf ref tested: ' bpf_vmtest.stdout | tail -1 | awk '{print $NF}')
+          echo "bpf_commit=${bpf_commit}" >> "$GITHUB_OUTPUT"
           if [[ -z "${rc}" || "${rc}" != "0" ]]; then
             echo "test_status=failure" >> "$GITHUB_OUTPUT"
             exit 1
@@ -107,12 +110,17 @@ jobs:
         with:
           script: |
             const ISSUE_TITLE = "BPF vmtest failure (riscv64) — daily";
+            const bpfCommit = '${{ steps.test.outputs.bpf_commit }}';
+            const bpfRef = '${{ inputs.bpf_ref }}';
+            const bpfLink = bpfCommit
+              ? `**bpf tested:** \`${bpfRef}@${bpfCommit}\` (https://github.com/kernel-patches/bpf/commit/${bpfCommit})`
+              : `**bpf ref tested:** \`${bpfRef}\``;
             const body = [
               `The daily RISC-V BPF vmtest run failed.`,
               ``,
               `**Workflow run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-              `**bpf ref tested:** \`${{ inputs.bpf_ref }}\``,
-              `**Commit:** \`${context.sha}\``,
+              bpfLink,
+              `**repo commit:** \`${context.sha}\``,
               ``,
               `### test_progs summary (tail)`,
               `\`\`\``,
