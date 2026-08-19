@@ -87,12 +87,22 @@ TEST_RC="${PIPESTATUS[0]}"
 echo "::endgroup::"
 
 # --------------------------------------------------------------------------
-# 4. Emit a trimmed summary to stdout (used verbatim in the GitHub issue).
-#    test_progs prints a "#<n> NNN,MMM ..." summary block near the end.
+# 4. Emit the focused error logs to stdout and a side file.
+#
+#    On failure test_progs prints a trailing "All error logs:" block that
+#    replays each failed case's captured output. Extract that whole block
+#    (from the "All error logs:" line to EOF) into bpf_error_logs.txt so the
+#    GitHub issue body can paste the focused failures instead of a crude tail
+#    of the raw stdout. If the marker is missing (e.g. test_progs crashed
+#    before summarizing) the file is empty and the workflow falls back to the
+#    stdout tail.
 # --------------------------------------------------------------------------
-echo "===== test_progs summary (last 200 lines) ====="
-tail -n 200 "${LOGFILE}"
-echo "================================================"
+ERRORLOGS="${WORKSPACE}/bpf_error_logs.txt"
+awk '/^[[:space:]]*All error logs:/{p=1} p' "${LOGFILE}" > "${ERRORLOGS}" || true
+
+echo "===== error logs ====="
+cat "${ERRORLOGS}"
+echo "===== end error logs ====="
 echo "bpf ref tested: ${BPF_REF} @ ${BPF_SHA}"
 echo "vmtest.sh exit code: ${TEST_RC}"
 
