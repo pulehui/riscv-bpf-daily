@@ -1,0 +1,11 @@
+# semcode local index database
+/.semcode.db/
+
+# Local bind-mounted source trees / test output
+/workspace/
+/bpf_vmtest.log
+
+# Editor / OS junk
+*~
+.*.swp
+.DS_Store
