@@ -32,8 +32,13 @@ Layout:
 - Conventional Commits prefixes: `feat:` / `fix:` / `chore:` / `docs:` / `refactor:`.
 - Commit/push only when asked. If on the default branch (`main`), branch first
   unless told otherwise.
-- Signing/co-authorship trailers are **optional and per-author** — do not add
-  them automatically; follow whatever the author asks for in that commit.
+- Every commit is signed by default. Add both trailers to the commit
+  message body (blank line before them):
+  ```
+  Signed-off-by: Pu Lehui <pulehui@gmail.com>
+  Co-Authored-By: Claude <noreply@anthropic.com>
+  ```
+  Skip a trailer only if the user explicitly opts out for that commit.
 
 ## Directory & file conventions
 
