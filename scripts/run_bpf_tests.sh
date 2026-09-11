@@ -114,6 +114,16 @@ echo "${DENYLIST}"
 echo "::endgroup::"
 
 # --------------------------------------------------------------------------
+# 2b. Reset ccache stats so the run's hit/miss numbers below are clean.
+#     Builds go through ccache via compiler symlinks baked into the image
+#     (see Dockerfile.riscv-bpf-vmtest); the cache dir itself may be a
+#     mounted volume persisted by the workflow.
+# --------------------------------------------------------------------------
+if command -v ccache > /dev/null 2>&1; then
+    ccache -z > /dev/null 2>&1 || true
+fi
+
+# --------------------------------------------------------------------------
 # 3. Run the tests. vmtest.sh builds the kernel + selftests and boots qemu,
 #    then runs the command after `--` inside the guest. Capture everything.
 #
@@ -148,5 +158,12 @@ cat "${ERRORLOGS}"
 echo "===== end error logs ====="
 echo "bpf ref tested: ${BPF_REF} @ ${BPF_SHA}"
 echo "vmtest.sh exit code: ${TEST_RC}"
+
+# Show this run's compile-cache outcome (hits saved real riscv64 work).
+if command -v ccache > /dev/null 2>&1; then
+    echo "::group::ccache stats"
+    ccache -s || true
+    echo "::endgroup::"
+fi
 
 exit "${TEST_RC}"

@@ -64,6 +64,16 @@ docker build -f Dockerfile.riscv-bpf-vmtest -t riscv-bpf-vmtest .
 docker run --rm -v "$PWD:/repo" riscv-bpf-vmtest bash /repo/scripts/run_bpf_tests.sh master
 ```
 
+Compiles go through ccache (compiler symlinks in the image, `CCACHE_DIR=/ccache`).
+To keep the cache across local runs, bind-mount a host dir:
+
+```bash
+mkdir -p ccache-dir
+docker run --rm --privileged \
+  -v "$PWD:/repo" -v "$PWD/ccache-dir:/ccache" -e CCACHE_DIR=/ccache \
+  riscv-bpf-vmtest bash /repo/scripts/run_bpf_tests.sh master
+```
+
 Remote: Actions → **riscv-bpf-daily** → **Run workflow** (optional `bpf_ref`
 input selects the `kernel-patches/bpf` ref; default `master`).
 

@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install --yes --no-install-recommends \
 	bison \
 	bzip2 \
 	ca-certificates \
+	ccache \
 	cmake \
 	cpio \
 	curl \
@@ -71,6 +72,26 @@ RUN ln -s /usr/bin/llc-21 /usr/bin/llc
 RUN ln -s /usr/bin/clang-21 /usr/bin/clang
 RUN ln -s /usr/bin/llvm-strip-21 /usr/bin/llvm-strip
 RUN ln -s /usr/bin/llvm-config-21 /usr/bin/llvm-config
+
+# Route compiler invocations through ccache. vmtest.sh builds its own make
+# command line, so instead of touching it, shadow the compilers with ccache
+# symlinks (masquerade mode): ccache resolves the real compiler from its own
+# name and the kernel + selftests builds are cached without any changes
+# upstream. A mounted volume at /ccache (workflow cache) persists objects.
+RUN mkdir -p /usr/local/ccache-bin && \
+	for cc in gcc g++ cc c++ clang clang-21 clang++ clang++-21 \
+	          riscv64-linux-gnu-gcc riscv64-linux-gnu-g++; do \
+		if command -v "$cc" > /dev/null 2>&1; then \
+			ln -s /usr/bin/ccache "/usr/local/ccache-bin/$cc"; \
+		fi; \
+	done
+RUN printf '%s\n' \
+	'sloppiness = file_macro,locale,time_macros,include_file_mtime,include_file_ctime' \
+	'hash_dir = false' \
+	'compiler_check = content' \
+	'max_size = 5G' > /etc/ccache.conf
+ENV PATH="/usr/local/ccache-bin:${PATH}"
+ENV CCACHE_DIR="/ccache"
 
 RUN git config --global --add safe.directory '*'
 
