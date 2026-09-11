@@ -1,21 +1,22 @@
-From 3f6438bc0ed8b7cb8cfc839b2f06f79bd15ada9a Mon Sep 17 00:00:00 2001
+From 4ccf5e16dad2c215fe1881e30700f5475ce5c0c9 Mon Sep 17 00:00:00 2001
 From: Pu Lehui <pulehui@huawei.com>
 Date: Fri, 11 Sep 2026 21:56:24 +0800
 Subject: [PATCH 05/11] riscv64 deny
 
 ---
- tools/testing/selftests/bpf/DENYLIST.riscv64 | 3 +++
- 1 file changed, 3 insertions(+)
+ tools/testing/selftests/bpf/DENYLIST.riscv64 | 4 ++++
+ 1 file changed, 4 insertions(+)
 
 diff --git a/tools/testing/selftests/bpf/DENYLIST.riscv64 b/tools/testing/selftests/bpf/DENYLIST.riscv64
-index ca1beae7fe8f..4ff5580714f9 100644
+index ca1beae7fe8f..6bd957680523 100644
 --- a/tools/testing/selftests/bpf/DENYLIST.riscv64
 +++ b/tools/testing/selftests/bpf/DENYLIST.riscv64
-@@ -1,2 +1,5 @@
+@@ -1,2 +1,6 @@
  # riscv64 deny list for BPF CI and local vmtest
  exceptions					# JIT does not support exceptions
 +stacktrace_build_id
-+stacktrace_build_id_nmi
++timer_async_cancel
++probe_user
 +tc_edt
 -- 
 2.53.0

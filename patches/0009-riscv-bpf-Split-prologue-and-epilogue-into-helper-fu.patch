@@ -1,4 +1,4 @@
-From 465b7e5c482411e81ffc81373ed494f39ee8c1fc Mon Sep 17 00:00:00 2001
+From fad979bc9466c87adc122be54aa7bb6f7ea74cc1 Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:11 +0530
 Subject: [PATCH 09/11] riscv, bpf: Split prologue and epilogue into helper

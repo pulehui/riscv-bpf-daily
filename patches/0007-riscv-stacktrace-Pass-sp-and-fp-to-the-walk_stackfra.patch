@@ -1,4 +1,4 @@
-From c80f245709ef9186995bc3ca32e6939b880f46dd Mon Sep 17 00:00:00 2001
+From 6b6e58ca6a3741540d84935586cf69ad0b5e6f3c Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:09 +0530
 Subject: [PATCH 07/11] riscv, stacktrace: Pass sp and fp to the

@@ -1,4 +1,4 @@
-From 4ff5c0fd6102578774eab0b0bd0cf7750ead3461 Mon Sep 17 00:00:00 2001
+From 6557f8bce81dc4be7ca882af92d5b54495fe40d1 Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:10 +0530
 Subject: [PATCH 08/11] riscv, stacktrace: Implement arch_bpf_stack_walk() for

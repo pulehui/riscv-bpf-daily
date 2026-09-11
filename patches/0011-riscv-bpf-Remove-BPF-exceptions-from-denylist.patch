@@ -1,4 +1,4 @@
-From e99a1fbcec4c9acaff93d593ed8a01bcdc8ec1c4 Mon Sep 17 00:00:00 2001
+From 8139858db028fa20c04ac7b6c9a5a7c6145b9a45 Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:13 +0530
 Subject: [PATCH 11/11] riscv, bpf: Remove BPF exceptions from denylist
@@ -13,15 +13,15 @@ Signed-off-by: Varun R Mallya <varunrmallya@gmail.com>
  1 file changed, 1 deletion(-)
 
 diff --git a/tools/testing/selftests/bpf/DENYLIST.riscv64 b/tools/testing/selftests/bpf/DENYLIST.riscv64
-index 4ff5580714f9..785aded94932 100644
+index 6bd957680523..b650bae68c08 100644
 --- a/tools/testing/selftests/bpf/DENYLIST.riscv64
 +++ b/tools/testing/selftests/bpf/DENYLIST.riscv64
 @@ -1,5 +1,4 @@
  # riscv64 deny list for BPF CI and local vmtest
 -exceptions					# JIT does not support exceptions
  stacktrace_build_id
- stacktrace_build_id_nmi
- tc_edt
+ timer_async_cancel
+ probe_user
 -- 
 2.53.0
 

@@ -1,4 +1,4 @@
-From 1b13811146bbc8252b0fd529699cc046ee480f20 Mon Sep 17 00:00:00 2001
+From 9bc0c9ba35a3ea8fa9a9dc7e8e632ddba55941f1 Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:08 +0530
 Subject: [PATCH 06/11] riscv: Use arch_stack_walk() for the kernel callchain

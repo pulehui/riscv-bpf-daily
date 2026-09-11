@@ -1,4 +1,4 @@
-From 85e1adf27be0c83c10ea96b5844978feda7ee50f Mon Sep 17 00:00:00 2001
+From 0e9e8aa3479463d14aae6c92b069673b6a26d42b Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:12 +0530
 Subject: [PATCH 10/11] riscv, bpf: Add support for BPF exceptions
