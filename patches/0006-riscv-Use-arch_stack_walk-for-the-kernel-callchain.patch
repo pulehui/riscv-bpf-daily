@@ -1,0 +1,40 @@
+From 1b13811146bbc8252b0fd529699cc046ee480f20 Mon Sep 17 00:00:00 2001
+From: Varun R Mallya <varunrmallya@gmail.com>
+Date: Wed, 22 Jul 2026 19:30:08 +0530
+Subject: [PATCH 06/11] riscv: Use arch_stack_walk() for the kernel callchain
+
+Replace walk_stackframe() with generic arch_stack_walk() which
+already wraps walk_stackframe() and is the generic mechanism used in
+archs like arm64 to build the kernel callchain.
+
+Also decouples perf from the internal walk_stackframe unwinder which
+is modified in later commits to accept a different function signature,
+which warranted this change.
+
+Signed-off-by: Varun R Mallya <varunrmallya@gmail.com>
+---
+ arch/riscv/kernel/perf_callchain.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/riscv/kernel/perf_callchain.c b/arch/riscv/kernel/perf_callchain.c
+index b465bc9eb870..93a12d53aa26 100644
+--- a/arch/riscv/kernel/perf_callchain.c
++++ b/arch/riscv/kernel/perf_callchain.c
+@@ -2,6 +2,7 @@
+ /* Copyright (C) 2019 Hangzhou C-SKY Microsystems co.,ltd. */
+ 
+ #include <linux/perf_event.h>
++#include <linux/stacktrace.h>
+ #include <linux/uaccess.h>
+ 
+ #include <asm/stacktrace.h>
+@@ -44,5 +45,5 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
+ 		return;
+ 	}
+ 
+-	walk_stackframe(NULL, regs, fill_callchain, entry);
++	arch_stack_walk(fill_callchain, entry, current, regs);
+ }
+-- 
+2.53.0
+

@@ -1,0 +1,63 @@
+From 4ff5c0fd6102578774eab0b0bd0cf7750ead3461 Mon Sep 17 00:00:00 2001
+From: Varun R Mallya <varunrmallya@gmail.com>
+Date: Wed, 22 Jul 2026 19:30:10 +0530
+Subject: [PATCH 08/11] riscv, stacktrace: Implement arch_bpf_stack_walk() for
+ BPF
+
+This will be used by bpf_throw() to unwind till the program marked as
+exception boundary and run the exception callback with the stack of the
+main program.
+This is a wrapper around walk_stackframe(), which now passes (pc, sp and
+fp) to it's consume callback.
+
+Signed-off-by: Varun R Mallya <varunrmallya@gmail.com>
+---
+ arch/riscv/kernel/stacktrace.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/arch/riscv/kernel/stacktrace.c b/arch/riscv/kernel/stacktrace.c
+index 30b369dd2815..c0f2393e5163 100644
+--- a/arch/riscv/kernel/stacktrace.c
++++ b/arch/riscv/kernel/stacktrace.c
+@@ -5,6 +5,7 @@
+  */
+ 
+ #include <linux/export.h>
++#include <linux/filter.h>
+ #include <linux/kallsyms.h>
+ #include <linux/sched.h>
+ #include <linux/sched/debug.h>
+@@ -104,6 +105,30 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
+ 	}
+ }
+ 
++struct bpf_unwind_consume_entry_data {
++	bool (*consume_entry)(void *cookie, u64 ip, u64 sp, u64 fp);
++	void *cookie;
++};
++
++static bool bpf_unwind_consume_entry(void *arg, unsigned long pc,
++				     unsigned long sp, unsigned long fp)
++{
++	struct bpf_unwind_consume_entry_data *data = arg;
++
++	return data->consume_entry(data->cookie, pc, sp, fp);
++}
++
++void notrace arch_bpf_stack_walk(bool (*consume_fn)(void *cookie, u64 ip, u64 sp, u64 bp),
++				 void *cookie)
++{
++	struct bpf_unwind_consume_entry_data data = {
++		.consume_entry = consume_fn,
++		.cookie = cookie,
++	};
++
++	walk_stackframe(current, NULL, bpf_unwind_consume_entry, &data);
++}
++
+ #else /* !CONFIG_FRAME_POINTER */
+ 
+ void notrace walk_stackframe(struct task_struct *task,
+-- 
+2.53.0
+

@@ -1,0 +1,153 @@
+From c80f245709ef9186995bc3ca32e6939b880f46dd Mon Sep 17 00:00:00 2001
+From: Varun R Mallya <varunrmallya@gmail.com>
+Date: Wed, 22 Jul 2026 19:30:09 +0530
+Subject: [PATCH 07/11] riscv, stacktrace: Pass sp and fp to the
+ walk_stackframe() callback
+
+Extend the walk_stackframe() consume callback so it receives the stack
+pointer and frame pointer of each frame, in addition to the pc. The
+extra state is needed by the BPF exceptions machinery.
+bpf_throw() unwinds the kernel stack looking for the BPF program that
+acts as the exception boundary and needs (pc, stack and frame pointers)
+of that frame to invoke the exception callback in its stack context.
+
+This mirrors what arm64 does, where kunwind_stack_walk() hands the full
+unwind state to its consume functions and arch_stack_walk() adapts the
+generic stack_trace_consume_fn via a small wrapper
+(kunwind_consume_entry_data), so that a single unwinder serves the
+generic stacktrace API and BPF alike.
+
+The pc-only callbacks print_trace_address() and save_wchan() simply
+gain ignored arguments, and arch_stack_walk() now adapts the generic
+stack_trace_consume_fn with a wrapper struct. In the
+!CONFIG_FRAME_POINTER variant there is no frame pointer to report, so
+pass the scan position as sp and 0 as fp.
+
+Signed-off-by: Varun R Mallya <varunrmallya@gmail.com>
+---
+ arch/riscv/include/asm/stacktrace.h |  5 +++-
+ arch/riscv/kernel/stacktrace.c      | 39 +++++++++++++++++++++++------
+ 2 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/arch/riscv/include/asm/stacktrace.h b/arch/riscv/include/asm/stacktrace.h
+index b1495a7e06ce..fd1ff04a040e 100644
+--- a/arch/riscv/include/asm/stacktrace.h
++++ b/arch/riscv/include/asm/stacktrace.h
+@@ -11,8 +11,11 @@ struct stackframe {
+ 	unsigned long ra;
+ };
+ 
++typedef bool (*walk_stackframe_fn)(void *arg, unsigned long pc,
++				   unsigned long sp, unsigned long fp);
++
+ extern void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
+-				    bool (*fn)(void *, unsigned long), void *arg);
++				    walk_stackframe_fn fn, void *arg);
+ extern void dump_backtrace(struct pt_regs *regs, struct task_struct *task,
+ 			   const char *loglvl);
+ 
+diff --git a/arch/riscv/kernel/stacktrace.c b/arch/riscv/kernel/stacktrace.c
+index c7555447149b..30b369dd2815 100644
+--- a/arch/riscv/kernel/stacktrace.c
++++ b/arch/riscv/kernel/stacktrace.c
+@@ -46,7 +46,7 @@ static inline int fp_is_valid(unsigned long fp, unsigned long sp)
+ }
+ 
+ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
+-			     bool (*fn)(void *, unsigned long), void *arg)
++			     walk_stackframe_fn fn, void *arg)
+ {
+ 	unsigned long fp, sp, pc;
+ 	int graph_idx = 0;
+@@ -71,7 +71,9 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
+ 	for (;;) {
+ 		struct stackframe *frame;
+ 
+-		if (unlikely(!__kernel_text_address(pc) || (level++ >= 0 && !fn(arg, pc))))
++		/* pc belongs to the function whose frame pointer is fp */
++		if (unlikely(!__kernel_text_address(pc) ||
++			     (level++ >= 0 && !fn(arg, pc, sp, fp))))
+ 			break;
+ 
+ 		if (unlikely(!fp_is_valid(fp, sp)))
+@@ -91,7 +93,7 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
+ 						   &frame->ra);
+ 			if (pc >= (unsigned long)handle_exception &&
+ 			    pc < (unsigned long)&ret_from_exception_end) {
+-				if (unlikely(!fn(arg, pc)))
++				if (unlikely(!fn(arg, pc, sp, fp)))
+ 					break;
+ 
+ 				pc = ((struct pt_regs *)sp)->epc;
+@@ -105,7 +107,7 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
+ #else /* !CONFIG_FRAME_POINTER */
+ 
+ void notrace walk_stackframe(struct task_struct *task,
+-	struct pt_regs *regs, bool (*fn)(void *, unsigned long), void *arg)
++	struct pt_regs *regs, walk_stackframe_fn fn, void *arg)
+ {
+ 	unsigned long sp, pc;
+ 	unsigned long *ksp;
+@@ -127,7 +129,8 @@ void notrace walk_stackframe(struct task_struct *task,
+ 
+ 	ksp = (unsigned long *)sp;
+ 	while (!kstack_end(ksp)) {
+-		if (__kernel_text_address(pc) && unlikely(!fn(arg, pc)))
++		if (__kernel_text_address(pc) &&
++		    unlikely(!fn(arg, pc, (unsigned long)ksp, 0)))
+ 			break;
+ 		pc = READ_ONCE_NOCHECK(*ksp++);
+ 	}
+@@ -135,7 +138,8 @@ void notrace walk_stackframe(struct task_struct *task,
+ 
+ #endif /* CONFIG_FRAME_POINTER */
+ 
+-static bool print_trace_address(void *arg, unsigned long pc)
++static bool print_trace_address(void *arg, unsigned long pc,
++				unsigned long sp, unsigned long fp)
+ {
+ 	const char *loglvl = arg;
+ 
+@@ -155,7 +159,8 @@ void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
+ 	dump_backtrace(NULL, task, loglvl);
+ }
+ 
+-static bool save_wchan(void *arg, unsigned long pc)
++static bool save_wchan(void *arg, unsigned long pc,
++		       unsigned long sp, unsigned long fp)
+ {
+ 	if (!in_sched_functions(pc)) {
+ 		unsigned long *p = arg;
+@@ -176,10 +181,28 @@ unsigned long __get_wchan(struct task_struct *task)
+ 	return pc;
+ }
+ 
++struct walk_stackframe_consume_entry_data {
++	stack_trace_consume_fn consume_entry;
++	void *cookie;
++};
++
++static bool walk_stackframe_consume_entry(void *arg, unsigned long pc,
++					  unsigned long sp, unsigned long fp)
++{
++	struct walk_stackframe_consume_entry_data *data = arg;
++
++	return data->consume_entry(data->cookie, pc);
++}
++
+ noinline noinstr void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
+ 		     struct task_struct *task, struct pt_regs *regs)
+ {
+-	walk_stackframe(task, regs, consume_entry, cookie);
++	struct walk_stackframe_consume_entry_data data = {
++		.consume_entry = consume_entry,
++		.cookie = cookie,
++	};
++
++	walk_stackframe(task, regs, walk_stackframe_consume_entry, &data);
+ }
+ 
+ /*
+-- 
+2.53.0
+

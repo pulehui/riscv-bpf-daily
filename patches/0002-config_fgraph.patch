@@ -1,0 +1,25 @@
+From 9366ccc48e299e1efc8d085df9a4deff0c7d4635 Mon Sep 17 00:00:00 2001
+From: Pu Lehui <pulehui@huawei.com>
+Date: Fri, 11 Sep 2026 21:36:24 +0800
+Subject: [PATCH 02/11] config_fgraph
+
+---
+ tools/testing/selftests/bpf/config.riscv64 | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/tools/testing/selftests/bpf/config.riscv64 b/tools/testing/selftests/bpf/config.riscv64
+index 56e476230c8a..6ac5fd35784c 100644
+--- a/tools/testing/selftests/bpf/config.riscv64
++++ b/tools/testing/selftests/bpf/config.riscv64
+@@ -26,6 +26,8 @@ CONFIG_EXT4_FS=y
+ CONFIG_EXT4_FS_POSIX_ACL=y
+ CONFIG_EXT4_FS_SECURITY=y
+ CONFIG_FRAME_POINTER=y
++CONFIG_FUNCTION_GRAPH_RETVAL=y
++CONFIG_FUNCTION_GRAPH_RETADDR=y
+ CONFIG_HARDLOCKUP_DETECTOR=y
+ CONFIG_HIGH_RES_TIMERS=y
+ CONFIG_HUGETLBFS=y
+-- 
+2.53.0
+
