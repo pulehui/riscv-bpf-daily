@@ -16,6 +16,8 @@ Layout:
 - `Dockerfile.riscv-bpf-vmtest` — the vmtest image (Ubuntu + llvm-21, qemu 11.1, pahole, rootfs).
 - `image/` — the riscv64 rootfs tarball, `COPY`ed into the image.
 - `scripts/run_bpf_tests.sh` — in-container test runner.
+- `patches/` — git format-patch files `git am`-ed onto the bpf tree after
+  clone (see `patches/README.md`).
 - `.github/workflows/riscv-bpf-daily.yml` — the GitHub Action (manual trigger).
 
 ## Language

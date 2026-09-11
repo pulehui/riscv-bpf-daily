@@ -6,10 +6,12 @@
 # riscv-bpf-vmtest container (see Dockerfile.riscv-bpf-vmtest).
 #
 # Usage:
-#   run_bpf_tests.sh [BPF_REF]
+#   run_bpf_tests.sh [BPF_REF] [PATCHES_DIR]
 #
-#   BPF_REF  - git ref/branch of github.com/kernel-patches/bpf to clone
-#              (default: bpf-next, the repo's default branch)
+#   BPF_REF      - git ref/branch of github.com/kernel-patches/bpf to clone
+#                  (default: bpf-next, the repo's default branch)
+#   PATCHES_DIR  - directory of git format-patch files applied with `git am`
+#                  after the clone (default: <repo>/patches)
 #
 # Outputs:
 #   /workspace/bpf_vmtest.log   full vmtest + test_progs output
@@ -26,6 +28,11 @@ set -euo pipefail
 
 BPF_REF="${1:-bpf-next}"
 BPF_URL="https://github.com/kernel-patches/bpf"
+
+# Patches live in this repo (mounted at /repo in the container). Derive the
+# location from the script itself so no mount point is hard-coded.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PATCHES_DIR="${2:-${SCRIPT_DIR}/../patches}"
 
 # Rootfs image baked into the container by the Dockerfile (COPY image/... /root).
 ROOTFS="/root/libbpf-vmtest-rootfs-2026.08.17-resolute-riscv64.tar.zst"
@@ -47,9 +54,45 @@ if [[ ! -d bpf/.git ]]; then
 fi
 cd "${WORKSPACE}/bpf"
 
-# Record the exact commit that was tested (shallow clone => HEAD is the tip).
+# Record the exact commit that was cloned (shallow clone => HEAD is the tip).
+BPF_BASE_SHA="$(git rev-parse HEAD)"
+echo "bpf base commit: ${BPF_BASE_SHA}"
+
+# --------------------------------------------------------------------------
+# 1b. Apply local patches from PATCHES_DIR with `git am`.
+#
+#     Patches are git format-patch files applied in filename order on top of
+#     the freshly cloned tree (see patches/README.md). A marker file keeps a
+#     reused clone from being patched twice. If any patch fails to apply the
+#     whole run aborts: testing an unpatched tree would be misleading.
+# --------------------------------------------------------------------------
+MARKER="${WORKSPACE}/.patches-applied"
+shopt -s nullglob
+PATCH_FILES=("${PATCHES_DIR}"/*.patch)
+shopt -u nullglob
+
+if [[ -e "${MARKER}" ]]; then
+    echo "patches already applied (marker ${MARKER} exists), skipping"
+elif (( ${#PATCH_FILES[@]} == 0 )); then
+    echo "no local patches in ${PATCHES_DIR}, nothing to apply"
+else
+    echo "::group::Apply local patches (${#PATCH_FILES[@]})"
+    printf '%s\n' "${PATCH_FILES[@]##*/}"
+    git -c user.name="riscv-bpf-daily" -c user.email="riscv-bpf-daily@users.noreply.github.com" \
+        am --3way "${PATCH_FILES[@]}" 2>&1 | sed 's/^/  /'
+    echo "::endgroup::"
+    if (( PIPESTATUS[0] != 0 )); then
+        git am --abort 2>/dev/null || true
+        echo "::error::git am failed for patches in ${PATCHES_DIR}; rebase them and update patches/"
+        exit 1
+    fi
+    touch "${MARKER}"
+fi
+
 BPF_SHA="$(git rev-parse HEAD)"
-echo "bpf_commit=${BPF_SHA}"
+if [[ "${BPF_SHA}" != "${BPF_BASE_SHA}" ]]; then
+    echo "bpf patches applied: ${#PATCH_FILES[@]} ${PATCH_FILES[*]##*/}"
+fi
 
 # --------------------------------------------------------------------------
 # 2. Build the comma-separated denylist from DENYLIST.riscv64.
