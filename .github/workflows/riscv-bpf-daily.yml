@@ -58,6 +58,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Compiler cache for the riscv64 kernel + selftests build inside the
+      # container (CCACHE_DIR=/ccache). restore-keys fall back to the most
+      # recent cache entry, so the first build after a base bump is a full
+      # miss but every later run only recompiles what actually changed.
+      # The post-save step runs even when the test step fails, and GitHub
+      # evicts the least-recently-used entries.
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ccache-dir
+          key: ccache-riscv64-${{ github.sha }}
+          restore-keys: |
+            ccache-riscv64-
+
       - name: Run BPF vmtest
         id: test
         # Stream the test output live to the Actions log (tee) while keeping a
@@ -67,8 +81,11 @@ jobs:
           # --privileged: vmtest.sh sets up loop devices and mounts the rootfs
           # to populate it; that needs real root + CAP_SYS_ADMIN, not the
           # default unprivileged container.
+          mkdir -p ccache-dir
           docker run --rm --privileged \
             -v "${PWD}:/repo" \
+            -v "${PWD}/ccache-dir:/ccache" \
+            -e CCACHE_DIR=/ccache \
             -e BPF_REF="${{ inputs.bpf_ref }}" \
             "${{ env.IMAGE }}:latest" \
             bash /repo/scripts/run_bpf_tests.sh "${{ inputs.bpf_ref }}" \
