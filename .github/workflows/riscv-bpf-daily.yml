@@ -39,27 +39,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sync Runner Image
-        run: |
-          DOCKER_HASH=$(git hash-object components/Dockerfile.riscv-bpf-vmtest | cut -c1-12)
-          TARGET_TAG="${{ env.IMAGE }}:df-${DOCKER_HASH}"
-
-          echo "::group::Pull or build test image (${TARGET_TAG})"
-          if docker pull "${TARGET_TAG}"; then
-            echo "Found existing image in GHCR: ${TARGET_TAG}. Tagging as latest."
-            docker tag "${TARGET_TAG}" "${{ env.IMAGE }}:latest"
-          else
-            echo "Image ${TARGET_TAG} not found in GHCR. Building and pushing..."
-            docker buildx build \
-              --cache-from type=gha \
-              --cache-to type=gha,mode=max \
-              --file ./components/Dockerfile.riscv-bpf-vmtest \
-              --tag "${TARGET_TAG}" \
-              --tag "${{ env.IMAGE }}:latest" \
-              --push .
-            echo "Pulling newly built image to local daemon..."
-            docker pull "${{ env.IMAGE }}:latest"
-          fi
-          echo "::endgroup::"
+        run: bash ./scripts/sync_image.sh
 
       - name: Restore ccache
         uses: actions/cache@v4
@@ -71,37 +51,7 @@ jobs:
 
       - name: Run test_progs
         id: test
-        run: |
-          mkdir -p ccache-dir
-          mkdir -p logs
-          docker run --rm --privileged \
-            -v "${PWD}:/repo" \
-            -v "${PWD}/ccache-dir:/ccache" \
-            -v "${PWD}/logs:/workspace" \
-            -e CCACHE_DIR=/ccache \
-            "${{ env.IMAGE }}:latest" \
-            bash /repo/scripts/run_bpf_tests.sh \
-            2>&1 | tee bpf_vmtest.stdout || true
-
-          cp logs/bpf_vmtest.log ./ 2>/dev/null || true
-          cp logs/bpf_error_logs.txt ./ 2>/dev/null || true
-
-          echo "::group::Runner error logs summary"
-          cat bpf_error_logs.txt 2>/dev/null || true
-          echo "::endgroup::"
-
-          # The script writes the real exit code as the last line:
-          #   "vmtest.sh exit code: N". If we cannot find it or it is non-zero,
-          # mark the step failed so the issue step fires.
-          rc=$(grep -E '^vmtest\.sh exit code: ' bpf_vmtest.stdout | tail -1 | awk '{print $NF}')
-          # The bpf commit actually tested (line "bpf branch tested: <branch> @ <sha>").
-          bpf_commit=$(grep -E '^bpf branch tested: ' bpf_vmtest.stdout | tail -1 | awk '{print $NF}')
-          echo "bpf_commit=${bpf_commit}" >> "$GITHUB_OUTPUT"
-          if [[ -z "${rc}" || "${rc}" != "0" ]]; then
-            echo "test_status=failure" >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
-          echo "test_status=success" >> "$GITHUB_OUTPUT"
+        run: bash ./scripts/run_ci_test.sh
 
       - name: Archive Logs
         if: always()
@@ -122,84 +72,5 @@ jobs:
           BPF_COMMIT: ${{ steps.test.outputs.bpf_commit }}
         with:
           script: |
-            const fs = require('fs');
-
-            // --- 12-char commit: prefer the bpf commit actually tested;
-            //     fall back to this repo's commit if clone failed early ---
-            const bpfCommit40 = process.env.BPF_COMMIT || '';
-            const repoCommit40 = context.sha;
-            const commit12 = (bpfCommit40 || repoCommit40).slice(0, 12);
-
-            const title = `Daily failed at commit ${commit12}`;
-
-            // --- focused error logs: the "All error logs:" block ---
-            let errorLogs = '';
-            try {
-              errorLogs = fs.readFileSync('bpf_error_logs.txt', 'utf8').trim();
-            } catch (_) { /* file may be missing */ }
-
-            let errorSection;
-            if (errorLogs) {
-              errorSection = [
-                `### Error logs`,
-                '```',
-                errorLogs,
-                '```',
-              ].join('\n');
-            } else {
-              // Fallback: tail of stdout when the All-error-logs block is absent.
-              let stdoutTail = '';
-              try {
-                stdoutTail = fs.readFileSync('bpf_vmtest.stdout', 'utf8')
-                  .split('\n').slice(-120).join('\n');
-              } catch (_) { /* ignore */ }
-              errorSection = [
-                `### Error logs`,
-                `_(All error logs 段缺失，以下为 stdout 末尾兜底)_`,
-                '```',
-                stdoutTail,
-                '```',
-              ].join('\n');
-            }
-
-            // --- bpf tested line (omit link if we never got the commit) ---
-            const bpfLine = bpfCommit40
-              ? `**bpf-next tested:** \`master@${bpfCommit40}\` (https://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git/commit/?id=${bpfCommit40})`
-              : `**bpf-next tested:** \`master\``;
-
-            const body = [
-              `## RISC-V BPF vmtest failed`,
-              ``,
-              `- **Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-              `- ${bpfLine}`,
-              `- **repo commit:** \`${repoCommit40}\``,
-              ``,
-              errorSection,
-              ``,
-              `Full log: \`bpf_vmtest-log\` artifact of run ${context.runId}.`,
-            ].join('\n');
-
-            // Each bpf version gets its own issue (title carries the commit).
-            // Deduplicate: append comment if an open issue already exists for this commit.
-            const { data: openIssues } = await github.rest.issues.listForRepo({
-              ...context.repo,
-              state: 'open',
-              labels: 'bpf-vmtest',
-            });
-            const existing = openIssues.find(i => i.title.includes(commit12));
-            if (existing) {
-              await github.rest.issues.createComment({
-                ...context.repo,
-                issue_number: existing.number,
-                body: `Recurring failure in run [${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}):\n\n${body}`,
-              });
-              core.info(`Appended failure comment to existing issue #${existing.number}`);
-            } else {
-              const { data: issue } = await github.rest.issues.create({
-                ...context.repo,
-                title,
-                body,
-                labels: ['bpf-vmtest', 'riscv64'],
-              });
-              core.info(`Created issue #${issue.number}: ${title}`);
-            }
+            const fileIssue = require('./scripts/file_issue.js');
+            await fileIssue({ github, context, core });
