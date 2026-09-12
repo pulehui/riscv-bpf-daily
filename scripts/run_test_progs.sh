@@ -19,7 +19,7 @@ DENYLIST_FILE="${WORKSPACE}/DENYLIST.merged"
 
 DENYLIST=""
 [[ -f "${DENYLIST_FILE}" ]] && DENYLIST="$(cat "${DENYLIST_FILE}")"
-PROGS_ARGS="${TEST_PROGS_ARGS:--a mmap -w 0}"
+PROGS_ARGS="${TEST_PROGS_ARGS:--a probe_user -w 0}"
 
 cd "${WORKSPACE}/bpf"
 
