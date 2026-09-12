@@ -59,7 +59,7 @@ jobs:
         run: bash ./scripts/run_ci.sh test_progs
 
       - name: Archive Logs
-        if: always()
+        if: always() && (steps.setup.outcome == 'failure' || steps.test_verifier.outcome == 'failure' || steps.test_progs.outcome == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: bpf_vmtest-log
@@ -67,7 +67,6 @@ jobs:
             *.log
             *.stdout
             *_errors.txt
-            logs/
           if-no-files-found: warn
           retention-days: 30
 
