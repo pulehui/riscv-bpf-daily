@@ -32,10 +32,17 @@ PLATFORM=riscv64 CROSS_COMPILE=riscv64-linux-gnu- \
 TEST_RC="${PIPESTATUS[0]}"
 echo "::endgroup::"
 
-# Extract failure logs for test_verifier
-grep -E 'FAIL|Summary:' "${LOGFILE}" > "${ERRORLOGS}" || true
+# Extract strictly from "./test_verifier" invocation down to "Summary: ..."
+awk '/(^|[[:space:]]|#|\+)\.\/test_verifier/{p=1} p{print; if (/^[[:space:]]*Summary:/) exit}' "${LOGFILE}" > "${ERRORLOGS}" || true
+
+# Fallback: if invocation line was not caught, match from first testcase #0
 if [[ ! -s "${ERRORLOGS}" ]]; then
-    tail -n 100 "${LOGFILE}" > "${ERRORLOGS}" || true
+    awk '/^[[:space:]]*#[0-9]+/{p=1} p{print; if (/^[[:space:]]*Summary:/) exit}' "${LOGFILE}" > "${ERRORLOGS}" || true
+fi
+
+# Fallback: if Summary was not caught, retain full log
+if [[ ! -s "${ERRORLOGS}" ]]; then
+    cat "${LOGFILE}" > "${ERRORLOGS}" || true
 fi
 
 echo "===== test_verifier error logs ====="

@@ -65,6 +65,11 @@ module.exports = async ({ github, context, core }) => {
     }
   }
 
+  // Guard against GitHub issue character limit (65536 chars)
+  if (errorLogs.length > 60000) {
+    errorLogs = errorLogs.slice(0, 60000) + '\n... [Logs truncated due to size limit] ...';
+  }
+
   const body = [
     `## riscv64 bpf vmtest failed`,
     ``,
