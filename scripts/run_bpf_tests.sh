@@ -2,14 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Run the BPF selftests test_progs suite under the riscv64 vmtest, skipping
-# every test listed in DENYLIST.riscv64. Intended to run *inside* the
-# riscv-bpf-vmtest container (see Dockerfile.riscv-bpf-vmtest).
+# every test listed in DENYLIST.riscv64 and local overrides/DENYLIST.ext.
+# Intended to run *inside* the riscv-bpf-vmtest container.
 #
 # Usage:
-#   run_bpf_tests.sh [PATCHES_DIR]
+#   run_bpf_tests.sh [OVERRIDES_DIR]
 #
-#   PATCHES_DIR  - directory of git format-patch files applied with `git am`
-#                  after the clone (default: <repo>/patches)
+#   OVERRIDES_DIR - directory containing local overrides:
+#                   - patches/      (git format-patch files applied with git am)
+#                   - DENYLIST.ext  (extra tests to skip)
+#                   (default: <repo>/overrides)
 #
 # Outputs:
 #   /workspace/bpf_vmtest.log   full vmtest + test_progs output
@@ -18,21 +20,19 @@
 # Exit code:
 #   0  if test_progs reports success
 #   1  if test_progs reports failures (or any setup step failed)
-#
-# The caller (GitHub Action) uses `if: always()` so that the issue-creation
-# step still runs when this script exits non-zero.
 
 set -euo pipefail
 
 BPF_URL="https://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git"
 BPF_BRANCH="master"
 
-# Patches live in this repo (mounted at /repo in the container). Derive the
-# location from the script itself so no mount point is hard-coded.
+# Derive paths from the script's location so no container mount point is hard-coded.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PATCHES_DIR="${1:-${SCRIPT_DIR}/../patches}"
+OVERRIDES_DIR="${1:-${SCRIPT_DIR}/../overrides}"
+PATCHES_DIR="${OVERRIDES_DIR}/patches"
+LOCAL_DENYLIST="${OVERRIDES_DIR}/DENYLIST.ext"
 
-# Rootfs image baked into the container by the Dockerfile (COPY image/... /root).
+# Rootfs image baked into the container by the Dockerfile.
 DEFAULT_ROOTFS="$(ls /root/libbpf-vmtest-rootfs-*.tar.zst 2>/dev/null | sort -V | tail -n 1 || true)"
 ROOTFS="${ROOTFS:-${DEFAULT_ROOTFS}}"
 if [[ ! -f "${ROOTFS}" ]]; then
@@ -63,21 +63,18 @@ else
 fi
 cd "${WORKSPACE}/bpf"
 
-# Record the exact commit that was cloned (shallow clone => HEAD is the tip).
 BPF_BASE_SHA="$(git rev-parse HEAD)"
 echo "bpf base commit: ${BPF_BASE_SHA}"
 
 # --------------------------------------------------------------------------
-# 1b. Apply local patches from PATCHES_DIR with `git am`.
-#
-#     Patches are git format-patch files applied in filename order on top of
-#     the freshly cloned tree (see patches/README.md). A marker file keeps a
-#     reused clone from being patched twice. If any patch fails to apply the
-#     whole run aborts: testing an unpatched tree would be misleading.
+# 1b. Apply local patches from overrides/patches with `git am`.
 # --------------------------------------------------------------------------
 MARKER="${WORKSPACE}/.patches-applied"
 shopt -s nullglob
-PATCH_FILES=("${PATCHES_DIR}"/*.patch)
+PATCH_FILES=()
+if [[ -d "${PATCHES_DIR}" ]]; then
+    PATCH_FILES=("${PATCHES_DIR}"/*.patch)
+fi
 shopt -u nullglob
 
 if [[ -e "${MARKER}" ]]; then
@@ -95,7 +92,7 @@ else
     echo "::endgroup::"
     if (( AM_RC != 0 )); then
         git am --abort 2>/dev/null || true
-        echo "::error::git am failed for patches in ${PATCHES_DIR}; rebase them and update patches/"
+        echo "::error::git am failed for patches in ${PATCHES_DIR}; rebase them and update overrides/patches/"
         exit 1
     fi
     touch "${MARKER}"
@@ -107,20 +104,17 @@ if [[ "${BPF_SHA}" != "${BPF_BASE_SHA}" ]]; then
 fi
 
 # --------------------------------------------------------------------------
-# 2. Build the comma-separated denylist from DENYLIST.riscv64.
-#
-#     Mirrors the exact pipeline specified for the daily run:
-#       - strip inline comments (cut -d'#' -f1)
-#       - trim leading/trailing whitespace per line
-#       - collapse to single commas, joining lines
-#     An empty denylist is fine (no skips).
+# 2. Build the comma-separated denylist from upstream + overrides/DENYLIST.ext.
 # --------------------------------------------------------------------------
-DENYLIST_FILE="tools/testing/selftests/bpf/DENYLIST.riscv64"
+UPSTREAM_DENYLIST="tools/testing/selftests/bpf/DENYLIST.riscv64"
 DENYLIST=""
-if [[ -f "${DENYLIST_FILE}" ]]; then
-    DENYLIST="$(cut -d'#' -f1 "${DENYLIST_FILE}" \
+
+if [[ -f "${UPSTREAM_DENYLIST}" ]] || [[ -f "${LOCAL_DENYLIST}" ]]; then
+    DENYLIST="$(cat "${UPSTREAM_DENYLIST}" "${LOCAL_DENYLIST}" 2>/dev/null \
+        | cut -d'#' -f1 \
         | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
         | grep -v '^$' \
+        | sort -u \
         | tr '\n' ',' \
         | sed -e 's/^,//' -e 's/,$//')"
 fi
@@ -130,41 +124,27 @@ echo "${DENYLIST}"
 echo "::endgroup::"
 
 # --------------------------------------------------------------------------
-# 2b. Reset ccache stats so the run's hit/miss numbers below are clean.
-#     Builds go through ccache via compiler symlinks baked into the image
-#     (see Dockerfile.riscv-bpf-vmtest); the cache dir itself may be a
-#     mounted volume persisted by the workflow.
+# 2b. Reset ccache stats.
 # --------------------------------------------------------------------------
 if command -v ccache > /dev/null 2>&1; then
     ccache -z > /dev/null 2>&1 || true
 fi
 
 # --------------------------------------------------------------------------
-# 3. Run the tests. vmtest.sh builds the kernel + selftests and boots qemu,
-#     then runs the command after `--` inside the guest. Capture everything.
-#
-#     Do NOT let set -e abort here: we want the issue step to see the log.
+# 3. Run the tests.
 # --------------------------------------------------------------------------
 echo "::group::vmtest test_progs"
 set +e
 PLATFORM=riscv64 CROSS_COMPILE=riscv64-linux-gnu- \
     tools/testing/selftests/bpf/vmtest.sh \
         -l "${ROOTFS}" -- \
-        ./test_progs -a mmap -w 0 ${DENYLIST:+-d "${DENYLIST}"} \
+        ./test_progs -w 0 ${DENYLIST:+-d "${DENYLIST}"} \
     2>&1 | tee "${LOGFILE}"
 TEST_RC="${PIPESTATUS[0]}"
 echo "::endgroup::"
 
 # --------------------------------------------------------------------------
-# 4. Emit the focused error logs to stdout and a side file.
-#
-#     On failure test_progs prints a trailing "All error logs:" block that
-#     replays each failed case's captured output. Extract that whole block
-#     (from the "All error logs:" line to EOF) into bpf_error_logs.txt so the
-#     GitHub issue body can paste the focused failures instead of a crude tail
-#     of the raw stdout. If the marker is missing (e.g. test_progs crashed
-#     before summarizing) the file is empty and the workflow falls back to the
-#     stdout tail.
+# 4. Emit focused error logs.
 # --------------------------------------------------------------------------
 ERRORLOGS="${WORKSPACE}/bpf_error_logs.txt"
 awk '/^[[:space:]]*All error logs:/{p=1} p' "${LOGFILE}" > "${ERRORLOGS}" || true
@@ -180,7 +160,6 @@ echo "===== end error logs ====="
 echo "bpf branch tested: ${BPF_BRANCH} @ ${BPF_SHA}"
 echo "vmtest.sh exit code: ${TEST_RC}"
 
-# Show this run's compile-cache outcome (hits saved real riscv64 work).
 if command -v ccache > /dev/null 2>&1; then
     echo "::group::ccache stats"
     ccache -s || true
