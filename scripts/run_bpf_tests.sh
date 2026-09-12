@@ -161,7 +161,7 @@ set +e
 PLATFORM=riscv64 CROSS_COMPILE=riscv64-linux-gnu- \
     tools/testing/selftests/bpf/vmtest.sh \
         -l "${ROOTFS}" -- \
-        ./test_progs -w 0 ${DENYLIST:+-d "${DENYLIST}"} \
+        ./test_progs -a mmap -w 0 ${DENYLIST:+-d "${DENYLIST}"} \
     2>&1 | tee "${LOGFILE}"
 TEST_RC="${PIPESTATUS[0]}"
 echo "::endgroup::"
