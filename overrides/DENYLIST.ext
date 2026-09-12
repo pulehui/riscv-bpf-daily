@@ -1,0 +1,3 @@
+# extra deny list for riscv64 bpf daily
+timer_async_cancel				# Flaky in qemu tcg
+tc_edt						# Flaky in qemu tcg

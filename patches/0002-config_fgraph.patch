@@ -1,7 +1,7 @@
-From 9366ccc48e299e1efc8d085df9a4deff0c7d4635 Mon Sep 17 00:00:00 2001
+From 73fa526705dd60e2048c913acbaff245d8aa4dde Mon Sep 17 00:00:00 2001
 From: Pu Lehui <pulehui@huawei.com>
 Date: Fri, 11 Sep 2026 21:36:24 +0800
-Subject: [PATCH 02/11] config_fgraph
+Subject: [PATCH 2/5] config_fgraph
 
 ---
  tools/testing/selftests/bpf/config.riscv64 | 2 ++

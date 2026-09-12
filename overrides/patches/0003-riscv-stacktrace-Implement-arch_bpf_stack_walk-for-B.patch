@@ -1,7 +1,7 @@
-From 6557f8bce81dc4be7ca882af92d5b54495fe40d1 Mon Sep 17 00:00:00 2001
+From 230cac502fa9318b4d5567065cb1378783157479 Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:10 +0530
-Subject: [PATCH 08/11] riscv, stacktrace: Implement arch_bpf_stack_walk() for
+Subject: [PATCH 3/6] riscv, stacktrace: Implement arch_bpf_stack_walk() for
  BPF
 
 This will be used by bpf_throw() to unwind till the program marked as

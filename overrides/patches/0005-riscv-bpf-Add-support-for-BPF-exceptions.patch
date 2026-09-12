@@ -1,7 +1,7 @@
-From 0e9e8aa3479463d14aae6c92b069673b6a26d42b Mon Sep 17 00:00:00 2001
+From 947696a7995cdc4bf0f04ad303a454cae7b47596 Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:12 +0530
-Subject: [PATCH 10/11] riscv, bpf: Add support for BPF exceptions
+Subject: [PATCH 5/6] riscv, bpf: Add support for BPF exceptions
 
 Add the JIT support required for BPF exceptions on riscv64.
 

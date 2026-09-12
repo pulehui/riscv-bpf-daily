@@ -1,7 +1,7 @@
-From 6b6e58ca6a3741540d84935586cf69ad0b5e6f3c Mon Sep 17 00:00:00 2001
+From e2d08dad7dd3da9c61b577ceb83471af163b9dd0 Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:09 +0530
-Subject: [PATCH 07/11] riscv, stacktrace: Pass sp and fp to the
+Subject: [PATCH 2/6] riscv, stacktrace: Pass sp and fp to the
  walk_stackframe() callback
 
 Extend the walk_stackframe() consume callback so it receives the stack

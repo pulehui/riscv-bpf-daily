@@ -1,7 +1,7 @@
-From 9bc0c9ba35a3ea8fa9a9dc7e8e632ddba55941f1 Mon Sep 17 00:00:00 2001
+From 08ec8e2e3ce946b5c83e5aba41a69ad08d129aeb Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:08 +0530
-Subject: [PATCH 06/11] riscv: Use arch_stack_walk() for the kernel callchain
+Subject: [PATCH 1/6] riscv: Use arch_stack_walk() for the kernel callchain
 
 Replace walk_stackframe() with generic arch_stack_walk() which
 already wraps walk_stackframe() and is the generic mechanism used in

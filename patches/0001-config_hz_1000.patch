@@ -1,7 +1,7 @@
-From f6858e17c72e5e8ba35414584421f6b68a894206 Mon Sep 17 00:00:00 2001
+From 571cd217ac3834ec5a73d233177d61fc69f99c8d Mon Sep 17 00:00:00 2001
 From: Pu Lehui <pulehui@huawei.com>
 Date: Fri, 11 Sep 2026 21:34:47 +0800
-Subject: [PATCH 01/11] config_hz_1000
+Subject: [PATCH 1/5] config_hz_1000
 
 ---
  tools/testing/selftests/bpf/config.riscv64 | 1 +

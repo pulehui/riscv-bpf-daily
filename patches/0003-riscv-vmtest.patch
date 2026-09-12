@@ -1,7 +1,7 @@
-From 267cf10ecdd613fc7fe74af06b9cd7b3f5f1ddbd Mon Sep 17 00:00:00 2001
+From cf6f9b689bcb5b78e9db90cfb456410ae899a062 Mon Sep 17 00:00:00 2001
 From: Pu Lehui <pulehui@huawei.com>
 Date: Fri, 11 Sep 2026 21:37:18 +0800
-Subject: [PATCH 03/11] riscv vmtest
+Subject: [PATCH 3/5] riscv vmtest
 
 ---
  tools/testing/selftests/bpf/vmtest.sh | 3 +--

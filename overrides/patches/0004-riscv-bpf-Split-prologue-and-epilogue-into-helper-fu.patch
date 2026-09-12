@@ -1,7 +1,7 @@
-From fad979bc9466c87adc122be54aa7bb6f7ea74cc1 Mon Sep 17 00:00:00 2001
+From 0dcfaf0f8f8b56a41e013bb8b39c0870cc0e3f44 Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:11 +0530
-Subject: [PATCH 09/11] riscv, bpf: Split prologue and epilogue into helper
+Subject: [PATCH 4/6] riscv, bpf: Split prologue and epilogue into helper
  functions
 
 Split bpf_jit_build_prologue() and __build_epilogue() into helpers.
