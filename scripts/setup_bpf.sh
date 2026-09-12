@@ -14,7 +14,7 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 OVERRIDES_DIR="${REPO_DIR}/overrides"
 OVERRIDES_PATCHES_DIR="${OVERRIDES_DIR}/patches"
-ROOT_PATCHES_DIR="${REPO_DIR}/patches"
+USER_PATCHES_DIR="${REPO_DIR}/patches"
 LOCAL_DENYLIST="${OVERRIDES_DIR}/DENYLIST.ext"
 
 WORKSPACE="/workspace"
@@ -39,7 +39,7 @@ cd "${WORKSPACE}/bpf"
 BPF_BASE_SHA="$(git rev-parse HEAD)"
 echo "bpf base commit: ${BPF_BASE_SHA}"
 
-# 1b. Apply patches (overrides/patches first, then root patches/)
+# 1b. Apply patches (overrides/patches first, then user patches/)
 apply_patch_dir() {
     local dir="$1"
     local desc="$2"
@@ -81,7 +81,7 @@ apply_patch_dir() {
 }
 
 apply_patch_dir "${OVERRIDES_PATCHES_DIR}" "overrides patches" "overrides"
-apply_patch_dir "${ROOT_PATCHES_DIR}" "root patches" "root"
+apply_patch_dir "${USER_PATCHES_DIR}" "user patches" "user"
 
 BPF_SHA="$(git rev-parse HEAD)"
 if [[ "${BPF_SHA}" != "${BPF_BASE_SHA}" ]]; then
