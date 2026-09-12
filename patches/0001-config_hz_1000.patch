@@ -1,0 +1,24 @@
+From 571cd217ac3834ec5a73d233177d61fc69f99c8d Mon Sep 17 00:00:00 2001
+From: Pu Lehui <pulehui@huawei.com>
+Date: Fri, 11 Sep 2026 21:34:47 +0800
+Subject: [PATCH 1/5] config_hz_1000
+
+---
+ tools/testing/selftests/bpf/config.riscv64 | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tools/testing/selftests/bpf/config.riscv64 b/tools/testing/selftests/bpf/config.riscv64
+index 655cb05a7689..56e476230c8a 100644
+--- a/tools/testing/selftests/bpf/config.riscv64
++++ b/tools/testing/selftests/bpf/config.riscv64
+@@ -29,6 +29,7 @@ CONFIG_FRAME_POINTER=y
+ CONFIG_HARDLOCKUP_DETECTOR=y
+ CONFIG_HIGH_RES_TIMERS=y
+ CONFIG_HUGETLBFS=y
++CONFIG_HZ_1000=y
+ CONFIG_INET=y
+ CONFIG_IP_ADVANCED_ROUTER=y
+ CONFIG_IP_MULTICAST=y
+-- 
+2.53.0
+
