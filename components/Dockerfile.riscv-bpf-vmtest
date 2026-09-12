@@ -52,7 +52,7 @@ RUN cd $(mktemp -d) && wget -q https://download.qemu.org/qemu-11.1.0.tar.xz && t
     cd qemu-11.1.0 && ./configure --target-list=riscv64-softmmu && make install -j$(nproc)
 
 # copy rootfs
-COPY image/libbpf-vmtest-rootfs-2026.08.17-resolute-riscv64.tar.zst /root
+COPY components/libbpf-vmtest-rootfs-2026.08.17-resolute-riscv64.tar.zst /root
 
 # riscv64 dependencies
 RUN dpkg --add-architecture riscv64

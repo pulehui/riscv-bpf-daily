@@ -40,7 +40,7 @@ jobs:
 
       - name: Sync Runner Image
         run: |
-          DOCKER_HASH=$(git hash-object Dockerfile.riscv-bpf-vmtest | cut -c1-12)
+          DOCKER_HASH=$(git hash-object components/Dockerfile.riscv-bpf-vmtest | cut -c1-12)
           TARGET_TAG="${{ env.IMAGE }}:df-${DOCKER_HASH}"
 
           echo "::group::Pull or build test image (${TARGET_TAG})"
@@ -52,7 +52,7 @@ jobs:
             docker buildx build \
               --cache-from type=gha \
               --cache-to type=gha,mode=max \
-              --file ./Dockerfile.riscv-bpf-vmtest \
+              --file ./components/Dockerfile.riscv-bpf-vmtest \
               --tag "${TARGET_TAG}" \
               --tag "${{ env.IMAGE }}:latest" \
               --push .
