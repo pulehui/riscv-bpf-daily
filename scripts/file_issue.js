@@ -2,12 +2,11 @@
 const fs = require('fs');
 
 module.exports = async ({ github, context, core }) => {
+  const isPR = context.eventName === 'pull_request';
   const bpfBaseCommit = process.env.BPF_BASE_COMMIT || process.env.BPF_COMMIT || '';
   const repoCommit = context.sha;
   const kernelCommit = bpfBaseCommit || repoCommit;
   const commit12 = kernelCommit.slice(0, 12);
-
-  const title = `Daily failed at commit ${commit12}`;
 
   // Determine failed testcase: only test_progs and test_verifier are specific, others become 'other'
   let testcase = '';
@@ -54,7 +53,7 @@ module.exports = async ({ github, context, core }) => {
     }
   }
 
-  // Guard against GitHub issue character limit (65536 chars)
+  // Guard against GitHub issue/comment character limit (65536 chars)
   if (errorLogs.length > 60000) {
     errorLogs = errorLogs.slice(0, 60000) + '\n... [Logs truncated due to size limit] ...';
   }
@@ -72,12 +71,22 @@ module.exports = async ({ github, context, core }) => {
     '```',
   ].join('\n');
 
-  // Always create a new issue for every failure run
-  const { data: issue } = await github.rest.issues.create({
-    ...context.repo,
-    title,
-    body,
-    labels: [testcase],
-  });
-  core.info(`Created issue #${issue.number} with label [${testcase}]: ${title}`);
+  if (isPR) {
+    const prNumber = context.payload.pull_request.number;
+    await github.rest.issues.createComment({
+      ...context.repo,
+      issue_number: prNumber,
+      body,
+    });
+    core.info(`Commented failure details on PR #${prNumber}`);
+  } else {
+    const title = `Daily failed at commit ${commit12}`;
+    const { data: issue } = await github.rest.issues.create({
+      ...context.repo,
+      title,
+      body,
+      labels: [testcase],
+    });
+    core.info(`Created issue #${issue.number} with label [${testcase}]: ${title}`);
+  }
 };
