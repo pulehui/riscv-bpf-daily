@@ -4,49 +4,78 @@ const fs = require('fs');
 module.exports = async ({ github, context, core }) => {
   const bpfCommit40 = process.env.BPF_COMMIT || '';
   const repoCommit40 = context.sha;
-  const commit12 = (bpfCommit40 || repoCommit40).slice(0, 12);
+  const kernelCommit = bpfCommit40 || repoCommit40;
+  const commit12 = kernelCommit.slice(0, 12);
+
   const title = `Daily failed at commit ${commit12}`;
 
-  let verifierLogs = '';
-  try {
-    verifierLogs = fs.readFileSync('test_verifier_errors.txt', 'utf8').trim();
-  } catch (_) {}
-
-  let progsLogs = '';
-  try {
-    progsLogs = fs.readFileSync('test_progs_errors.txt', 'utf8').trim();
-  } catch (_) {}
-
-  let sections = [];
-  if (verifierLogs) {
-    sections.push(`### test_verifier errors\n\`\`\`\n${verifierLogs}\n\`\`\``);
+  // Determine failed testcase
+  const testcases = [];
+  if (process.env.TEST_PROGS_STATUS === 'failure') {
+    testcases.push('test_progs');
   }
-  if (progsLogs) {
-    sections.push(`### test_progs errors\n\`\`\`\n${progsLogs}\n\`\`\``);
+  if (process.env.TEST_VERIFIER_STATUS === 'failure') {
+    testcases.push('test_verifier');
+  }
+  if (testcases.length === 0) {
+    if (fs.existsSync('test_progs_errors.txt') && fs.readFileSync('test_progs_errors.txt', 'utf8').trim()) {
+      testcases.push('test_progs');
+    } else if (fs.existsSync('test_verifier_errors.txt') && fs.readFileSync('test_verifier_errors.txt', 'utf8').trim()) {
+      testcases.push('test_verifier');
+    } else {
+      testcases.push('setup');
+    }
+  }
+  const testcaseStr = testcases.join(', ');
+
+  // Extract focused error logs
+  let errorLogs = '';
+  if (process.env.TEST_PROGS_STATUS === 'failure' && fs.existsSync('test_progs_errors.txt')) {
+    errorLogs = fs.readFileSync('test_progs_errors.txt', 'utf8').trim();
+  } else if (process.env.TEST_VERIFIER_STATUS === 'failure' && fs.existsSync('test_verifier_errors.txt')) {
+    errorLogs = fs.readFileSync('test_verifier_errors.txt', 'utf8').trim();
   }
 
-  if (sections.length === 0) {
-    let stdoutTail = '';
-    try {
-      stdoutTail = fs.readFileSync('test_progs.stdout', 'utf8').split('\n').slice(-100).join('\n');
-    } catch (_) {}
-    sections.push(`### Error logs (stdout tail fallback)\n\`\`\`\n${stdoutTail}\n\`\`\``);
+  if (!errorLogs) {
+    for (const file of ['test_progs_errors.txt', 'test_verifier_errors.txt']) {
+      try {
+        if (fs.existsSync(file)) {
+          const content = fs.readFileSync(file, 'utf8').trim();
+          if (content) {
+            errorLogs = content;
+            break;
+          }
+        }
+      } catch (_) {}
+    }
   }
 
-  const bpfLine = bpfCommit40
-    ? `**bpf-next tested:** \`master@${bpfCommit40}\` (https://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git/commit/?id=${bpfCommit40})`
-    : `**bpf-next tested:** \`master\``;
+  // Fallback: tail of stdout when focused error log file is missing
+  if (!errorLogs) {
+    for (const file of ['test_progs.stdout', 'test_verifier.stdout', 'setup.stdout']) {
+      try {
+        if (fs.existsSync(file)) {
+          const tail = fs.readFileSync(file, 'utf8').split('\n').slice(-100).join('\n').trim();
+          if (tail) {
+            errorLogs = tail;
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+  }
 
   const body = [
-    `## RISC-V BPF vmtest failed`,
+    `## riscv64 bpf vmtest failed`,
     ``,
+    `- **Testcase:** ${testcaseStr}`,
+    `- **Kernel commit:** ${kernelCommit}`,
     `- **Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-    `- ${bpfLine}`,
-    `- **repo commit:** \`${repoCommit40}\``,
     ``,
-    sections.join('\n\n'),
-    ``,
-    `Full log: \`bpf_vmtest-log\` artifact of run ${context.runId}.`,
+    `### Error logs`,
+    '```',
+    errorLogs,
+    '```',
   ].join('\n');
 
   const { data: openIssues } = await github.rest.issues.listForRepo({

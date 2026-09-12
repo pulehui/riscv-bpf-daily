@@ -37,10 +37,11 @@ PLATFORM=riscv64 CROSS_COMPILE=riscv64-linux-gnu- \
 TEST_RC="${PIPESTATUS[0]}"
 echo "::endgroup::"
 
-awk '/^[[:space:]]*All error logs:/{p=1} p' "${LOGFILE}" > "${ERRORLOGS}" || true
+# Extract strictly from "All error logs:" to "Summary: ..."
+awk '/^[[:space:]]*All error logs:/{p=1} p{print; if (/^[[:space:]]*Summary:/) exit}' "${LOGFILE}" > "${ERRORLOGS}" || true
 if [[ -s "${ERRORLOGS}" ]] && (( $(wc -l < "${ERRORLOGS}") > 250 )); then
     head -n 250 "${ERRORLOGS}" > "${ERRORLOGS}.tmp"
-    echo -e "\n... [Logs truncated. See artifacts for full output] ..." >> "${ERRORLOGS}.tmp"
+    echo -e "\n... [Logs truncated] ..." >> "${ERRORLOGS}.tmp"
     mv "${ERRORLOGS}.tmp" "${ERRORLOGS}"
 fi
 
