@@ -19,7 +19,6 @@ DENYLIST_FILE="${WORKSPACE}/DENYLIST.merged"
 
 DENYLIST=""
 [[ -f "${DENYLIST_FILE}" ]] && DENYLIST="$(cat "${DENYLIST_FILE}")"
-PROGS_ARGS="${TEST_PROGS_ARGS:--a mmap -w 0}"
 
 cd "${WORKSPACE}/bpf"
 
@@ -32,7 +31,7 @@ set +e
 PLATFORM=riscv64 CROSS_COMPILE=riscv64-linux-gnu- \
     tools/testing/selftests/bpf/vmtest.sh \
         -l "${ROOTFS}" -- \
-        ./test_progs ${PROGS_ARGS} ${DENYLIST:+-d "${DENYLIST}"} \
+        ./test_progs -w 0 ${DENYLIST:+-d "${DENYLIST}"} \
     2>&1 | tee "${LOGFILE}"
 TEST_RC="${PIPESTATUS[0]}"
 echo "::endgroup::"
