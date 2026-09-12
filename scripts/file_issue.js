@@ -83,29 +83,12 @@ module.exports = async ({ github, context, core }) => {
     '```',
   ].join('\n');
 
-  // Search open issues to deduplicate (query without hardcoded labels)
-  const { data: openIssues } = await github.rest.issues.listForRepo({
+  // Always create a new issue for every failure run
+  const { data: issue } = await github.rest.issues.create({
     ...context.repo,
-    state: 'open',
-    per_page: 100,
+    title,
+    body,
+    labels: testcases,
   });
-
-  const existing = openIssues.find(i => i.title.includes(commit12));
-  if (existing) {
-    await github.rest.issues.createComment({
-      ...context.repo,
-      issue_number: existing.number,
-      body: `Recurring failure in run [${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}):\n\n${body}`,
-    });
-    core.info(`Appended failure comment to existing issue #${existing.number}`);
-  } else {
-    // Dynamically label with failed suite (e.g. ['test_progs'] or ['test_verifier'])
-    const { data: issue } = await github.rest.issues.create({
-      ...context.repo,
-      title,
-      body,
-      labels: testcases,
-    });
-    core.info(`Created issue #${issue.number} with labels [${testcases.join(', ')}]: ${title}`);
-  }
+  core.info(`Created issue #${issue.number} with labels [${testcases.join(', ')}]: ${title}`);
 };
