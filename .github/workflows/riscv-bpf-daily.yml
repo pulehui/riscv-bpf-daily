@@ -72,7 +72,7 @@ jobs:
         if: failure()
         uses: actions/github-script@v7
         env:
-          BPF_COMMIT: ${{ steps.setup.outputs.bpf_commit }}
+          BPF_BASE_COMMIT: ${{ steps.setup.outputs.bpf_base_commit }}
           TEST_PROGS_STATUS: ${{ steps.test_progs.outcome }}
           TEST_VERIFIER_STATUS: ${{ steps.test_verifier.outcome }}
         with:

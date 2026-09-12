@@ -26,12 +26,13 @@ run_container_cmd() {
 case "${STEP}" in
     setup)
         run_container_cmd "setup_bpf.sh" "setup.stdout"
-        bpf_commit=$(grep -E '^bpf branch tested: ' setup.stdout | tail -1 | awk '{print $NF}')
+        bpf_base_commit=$(grep -E '^bpf base commit: ' setup.stdout | tail -1 | awk '{print $NF}')
         if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
-            echo "bpf_commit=${bpf_commit}" >> "$GITHUB_OUTPUT"
+            echo "bpf_base_commit=${bpf_base_commit}" >> "$GITHUB_OUTPUT"
+            echo "bpf_commit=${bpf_base_commit}" >> "$GITHUB_OUTPUT"
         fi
-        if [[ -z "${bpf_commit}" ]]; then
-            echo "::error::Failed to parse bpf commit in setup"
+        if [[ -z "${bpf_base_commit}" ]]; then
+            echo "::error::Failed to parse bpf base commit in setup"
             exit 1
         fi
         ;;

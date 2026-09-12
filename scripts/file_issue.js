@@ -2,9 +2,9 @@
 const fs = require('fs');
 
 module.exports = async ({ github, context, core }) => {
-  const bpfCommit40 = process.env.BPF_COMMIT || '';
-  const repoCommit40 = context.sha;
-  const kernelCommit = bpfCommit40 || repoCommit40;
+  const bpfBaseCommit = process.env.BPF_BASE_COMMIT || process.env.BPF_COMMIT || '';
+  const repoCommit = context.sha;
+  const kernelCommit = bpfBaseCommit || repoCommit;
   const commit12 = kernelCommit.slice(0, 12);
 
   const title = `Daily failed at commit ${commit12}`;
