@@ -9,55 +9,44 @@ module.exports = async ({ github, context, core }) => {
 
   const title = `Daily failed at commit ${commit12}`;
 
-  // Determine failed testcase
-  const testcases = [];
+  // Determine failed testcase: only test_progs and test_verifier are specific, others become 'other'
+  let testcase = '';
   if (process.env.TEST_PROGS_STATUS === 'failure') {
-    testcases.push('test_progs');
+    testcase = 'test_progs';
+  } else if (process.env.TEST_VERIFIER_STATUS === 'failure') {
+    testcase = 'test_verifier';
+  } else if (fs.existsSync('test_progs_errors.txt') && fs.readFileSync('test_progs_errors.txt', 'utf8').trim()) {
+    testcase = 'test_progs';
+  } else if (fs.existsSync('test_verifier_errors.txt') && fs.readFileSync('test_verifier_errors.txt', 'utf8').trim()) {
+    testcase = 'test_verifier';
+  } else {
+    testcase = 'other';
   }
-  if (process.env.TEST_VERIFIER_STATUS === 'failure') {
-    testcases.push('test_verifier');
-  }
-  if (testcases.length === 0) {
-    if (fs.existsSync('test_progs_errors.txt') && fs.readFileSync('test_progs_errors.txt', 'utf8').trim()) {
-      testcases.push('test_progs');
-    } else if (fs.existsSync('test_verifier_errors.txt') && fs.readFileSync('test_verifier_errors.txt', 'utf8').trim()) {
-      testcases.push('test_verifier');
-    } else {
-      testcases.push('setup');
-    }
-  }
-  const testcaseStr = testcases.join(', ');
 
-  // Extract focused error logs
+  // Extract error logs
   let errorLogs = '';
-  if (process.env.TEST_PROGS_STATUS === 'failure' && fs.existsSync('test_progs_errors.txt')) {
-    errorLogs = fs.readFileSync('test_progs_errors.txt', 'utf8').trim();
-  } else if (process.env.TEST_VERIFIER_STATUS === 'failure' && fs.existsSync('test_verifier_errors.txt')) {
-    errorLogs = fs.readFileSync('test_verifier_errors.txt', 'utf8').trim();
-  }
-
-  if (!errorLogs) {
-    for (const file of ['test_progs_errors.txt', 'test_verifier_errors.txt']) {
+  if (testcase === 'test_progs') {
+    if (fs.existsSync('test_progs_errors.txt')) {
+      errorLogs = fs.readFileSync('test_progs_errors.txt', 'utf8').trim();
+    }
+    if (!errorLogs && fs.existsSync('test_progs.stdout')) {
+      errorLogs = fs.readFileSync('test_progs.stdout', 'utf8').trim();
+    }
+  } else if (testcase === 'test_verifier') {
+    if (fs.existsSync('test_verifier_errors.txt')) {
+      errorLogs = fs.readFileSync('test_verifier_errors.txt', 'utf8').trim();
+    }
+    if (!errorLogs && fs.existsSync('test_verifier.stdout')) {
+      errorLogs = fs.readFileSync('test_verifier.stdout', 'utf8').trim();
+    }
+  } else {
+    // For 'other': copy log content verbatim without truncation
+    for (const file of ['setup.stdout', 'bpf_vmtest.stdout']) {
       try {
         if (fs.existsSync(file)) {
           const content = fs.readFileSync(file, 'utf8').trim();
           if (content) {
             errorLogs = content;
-            break;
-          }
-        }
-      } catch (_) {}
-    }
-  }
-
-  // Fallback: tail of stdout when focused error log file is missing
-  if (!errorLogs) {
-    for (const file of ['test_progs.stdout', 'test_verifier.stdout', 'setup.stdout']) {
-      try {
-        if (fs.existsSync(file)) {
-          const tail = fs.readFileSync(file, 'utf8').split('\n').slice(-100).join('\n').trim();
-          if (tail) {
-            errorLogs = tail;
             break;
           }
         }
@@ -73,7 +62,7 @@ module.exports = async ({ github, context, core }) => {
   const body = [
     `## riscv64 bpf vmtest failed`,
     ``,
-    `- **Testcase:** ${testcaseStr}`,
+    `- **Testcase:** ${testcase}`,
     `- **Kernel commit:** ${kernelCommit}`,
     `- **Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
     ``,
@@ -88,7 +77,7 @@ module.exports = async ({ github, context, core }) => {
     ...context.repo,
     title,
     body,
-    labels: testcases,
+    labels: [testcase],
   });
-  core.info(`Created issue #${issue.number} with labels [${testcases.join(', ')}]: ${title}`);
+  core.info(`Created issue #${issue.number} with label [${testcase}]: ${title}`);
 };
