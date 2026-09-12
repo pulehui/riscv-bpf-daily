@@ -48,18 +48,16 @@ jobs:
         id: setup
         run: bash ./scripts/run_ci.sh setup
 
-      - name: Run test_verifier
-        id: test_verifier
-        if: always() && steps.setup.outcome == 'success'
-        run: bash ./scripts/run_ci.sh test_verifier
-
       - name: Run test_progs
         id: test_progs
-        if: always() && steps.setup.outcome == 'success'
         run: bash ./scripts/run_ci.sh test_progs
 
+      - name: Run test_verifier
+        id: test_verifier
+        run: bash ./scripts/run_ci.sh test_verifier
+
       - name: Archive Logs
-        if: always() && (steps.setup.outcome == 'failure' || steps.test_verifier.outcome == 'failure' || steps.test_progs.outcome == 'failure')
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: bpf_vmtest-log
@@ -71,7 +69,7 @@ jobs:
           retention-days: 30
 
       - name: File Issue
-        if: always() && (steps.setup.outcome == 'failure' || steps.test_verifier.outcome == 'failure' || steps.test_progs.outcome == 'failure')
+        if: failure()
         uses: actions/github-script@v7
         env:
           BPF_COMMIT: ${{ steps.setup.outputs.bpf_commit }}
