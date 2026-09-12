@@ -38,17 +38,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push image (cached)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile.riscv-bpf-vmtest
-          push: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Prepare test container image
+        run: |
+          DOCKER_HASH=$(git hash-object Dockerfile.riscv-bpf-vmtest | cut -c1-12)
+          TARGET_TAG="${{ env.IMAGE }}:df-${DOCKER_HASH}"
+          echo "Checking if container image ${TARGET_TAG} exists in GHCR..."
+
+          if docker pull "${TARGET_TAG}"; then
+            echo "Image ${TARGET_TAG} exists. Tagging as latest and skipping build."
+            docker tag "${TARGET_TAG}" "${{ env.IMAGE }}:latest"
+          else
+            echo "Image ${TARGET_TAG} not found. Building and pushing..."
+            echo "::group::Docker Buildx"
+            docker buildx build \
+              --cache-from type=gha \
+              --cache-to type=gha,mode=max \
+              --file ./Dockerfile.riscv-bpf-vmtest \
+              --tag "${TARGET_TAG}" \
+              --tag "${{ env.IMAGE }}:latest" \
+              --push .
+            echo "::endgroup::"
+            docker pull "${{ env.IMAGE }}:latest"
+          fi
 
       # Compiler cache for the riscv64 kernel + selftests build inside the
       # container (CCACHE_DIR=/ccache). restore-keys fall back to the most
@@ -79,9 +90,9 @@ jobs:
           cp logs/bpf_vmtest.log ./ 2>/dev/null || true
           cp logs/bpf_error_logs.txt ./ 2>/dev/null || true
 
-          echo "===== runner stdout (error logs) ====="
+          echo "::group::Runner error logs summary"
           cat bpf_error_logs.txt 2>/dev/null || true
-          echo "====================================="
+          echo "::endgroup::"
 
           # The script writes the real exit code as the last line:
           #   "vmtest.sh exit code: N". If we cannot find it or it is non-zero,
