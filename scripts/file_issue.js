@@ -7,20 +7,31 @@ module.exports = async ({ github, context, core }) => {
   const commit12 = (bpfCommit40 || repoCommit40).slice(0, 12);
   const title = `Daily failed at commit ${commit12}`;
 
-  let errorLogs = '';
+  let verifierLogs = '';
   try {
-    errorLogs = fs.readFileSync('bpf_error_logs.txt', 'utf8').trim();
+    verifierLogs = fs.readFileSync('test_verifier_errors.txt', 'utf8').trim();
   } catch (_) {}
 
-  const errorSection = errorLogs
-    ? `### Error logs\n\`\`\`\n${errorLogs}\n\`\`\``
-    : (() => {
-        let stdoutTail = '';
-        try {
-          stdoutTail = fs.readFileSync('bpf_vmtest.stdout', 'utf8').split('\n').slice(-120).join('\n');
-        } catch (_) {}
-        return `### Error logs\n_(All error logs 段缺失，以下为 stdout 末尾兜底)_\n\`\`\`\n${stdoutTail}\n\`\`\``;
-      })();
+  let progsLogs = '';
+  try {
+    progsLogs = fs.readFileSync('test_progs_errors.txt', 'utf8').trim();
+  } catch (_) {}
+
+  let sections = [];
+  if (verifierLogs) {
+    sections.push(`### test_verifier errors\n\`\`\`\n${verifierLogs}\n\`\`\``);
+  }
+  if (progsLogs) {
+    sections.push(`### test_progs errors\n\`\`\`\n${progsLogs}\n\`\`\``);
+  }
+
+  if (sections.length === 0) {
+    let stdoutTail = '';
+    try {
+      stdoutTail = fs.readFileSync('test_progs.stdout', 'utf8').split('\n').slice(-100).join('\n');
+    } catch (_) {}
+    sections.push(`### Error logs (stdout tail fallback)\n\`\`\`\n${stdoutTail}\n\`\`\``);
+  }
 
   const bpfLine = bpfCommit40
     ? `**bpf-next tested:** \`master@${bpfCommit40}\` (https://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git/commit/?id=${bpfCommit40})`
@@ -33,7 +44,7 @@ module.exports = async ({ github, context, core }) => {
     `- ${bpfLine}`,
     `- **repo commit:** \`${repoCommit40}\``,
     ``,
-    errorSection,
+    sections.join('\n\n'),
     ``,
     `Full log: \`bpf_vmtest-log\` artifact of run ${context.runId}.`,
   ].join('\n');

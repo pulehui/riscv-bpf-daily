@@ -1,11 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # RISC-V BPF daily test run.
-#
-# Manually triggered (workflow_dispatch). Builds the riscv-bpf-vmtest image
-# (cached via GitHub Actions cache, pushed to GHCR so it survives across
-# runs), runs the BPF selftests test_progs suite for riscv64 inside QEMU,
-# and opens/comments a GitHub issue when tests fail.
 
 name: riscv-bpf-daily
 
@@ -49,9 +44,19 @@ jobs:
           restore-keys: |
             ccache-riscv64-
 
+      - name: Setup Tree
+        id: setup
+        run: bash ./scripts/run_ci.sh setup
+
+      - name: Run test_verifier
+        id: test_verifier
+        if: always() && steps.setup.outcome == 'success'
+        run: bash ./scripts/run_ci.sh test_verifier
+
       - name: Run test_progs
-        id: test
-        run: bash ./scripts/run_ci_test.sh
+        id: test_progs
+        if: always() && steps.setup.outcome == 'success'
+        run: bash ./scripts/run_ci.sh test_progs
 
       - name: Archive Logs
         if: always()
@@ -59,17 +64,18 @@ jobs:
         with:
           name: bpf_vmtest-log
           path: |
-            bpf_vmtest.log
-            bpf_vmtest.stdout
-            bpf_error_logs.txt
+            *.log
+            *.stdout
+            *_errors.txt
+            logs/
           if-no-files-found: warn
           retention-days: 30
 
       - name: File Issue
-        if: always() && steps.test.outputs.test_status == 'failure'
+        if: always() && (steps.setup.outcome == 'failure' || steps.test_verifier.outcome == 'failure' || steps.test_progs.outcome == 'failure')
         uses: actions/github-script@v7
         env:
-          BPF_COMMIT: ${{ steps.test.outputs.bpf_commit }}
+          BPF_COMMIT: ${{ steps.setup.outputs.bpf_commit }}
         with:
           script: |
             const fileIssue = require('./scripts/file_issue.js');
