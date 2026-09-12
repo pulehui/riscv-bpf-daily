@@ -47,11 +47,21 @@ apply_patch_dir() {
     local marker="${WORKSPACE}/.patches-applied-${tag}"
 
     shopt -s nullglob
-    local patches=()
+    local raw_patches=()
     if [[ -d "${dir}" ]]; then
-        patches=("${dir}"/*.patch)
+        raw_patches=("${dir}"/*.patch)
     fi
     shopt -u nullglob
+
+    # Filter out README or non-patch documentation files
+    local patches=()
+    for p in "${raw_patches[@]}"; do
+        local filename="$(basename "${p}")"
+        if [[ "${filename,,}" =~ ^readme ]]; then
+            continue
+        fi
+        patches+=("${p}")
+    done
 
     if [[ -e "${marker}" ]]; then
         echo "${desc} already applied (marker exists), skipping"
