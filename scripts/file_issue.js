@@ -83,10 +83,11 @@ module.exports = async ({ github, context, core }) => {
     '```',
   ].join('\n');
 
+  // Search open issues to deduplicate (query without hardcoded labels)
   const { data: openIssues } = await github.rest.issues.listForRepo({
     ...context.repo,
     state: 'open',
-    labels: 'bpf-vmtest',
+    per_page: 100,
   });
 
   const existing = openIssues.find(i => i.title.includes(commit12));
@@ -98,12 +99,13 @@ module.exports = async ({ github, context, core }) => {
     });
     core.info(`Appended failure comment to existing issue #${existing.number}`);
   } else {
+    // Dynamically label with failed suite (e.g. ['test_progs'] or ['test_verifier'])
     const { data: issue } = await github.rest.issues.create({
       ...context.repo,
       title,
       body,
-      labels: ['bpf-vmtest', 'riscv64'],
+      labels: testcases,
     });
-    core.info(`Created issue #${issue.number}: ${title}`);
+    core.info(`Created issue #${issue.number} with labels [${testcases.join(', ')}]: ${title}`);
   }
 };
