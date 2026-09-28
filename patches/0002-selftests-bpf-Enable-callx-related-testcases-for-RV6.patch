@@ -1,0 +1,74 @@
+From aef030f6c3dda37c45fc6b3e60033e39b47f92ec Mon Sep 17 00:00:00 2001
+From: Pu Lehui <pulehui@huawei.com>
+Date: Mon, 28 Sep 2026 08:37:34 +0000
+Subject: [PATCH 2/2] selftests/bpf: Enable callx related testcases for RV64
+
+Enable callx related testcases for RV64.
+
+Signed-off-by: Pu Lehui <pulehui@huawei.com>
+---
+ tools/testing/selftests/bpf/prog_tests/callx_func_ptr_map.c | 3 ++-
+ tools/testing/selftests/bpf/prog_tests/callx_rodata_lskel.c | 3 ++-
+ tools/testing/selftests/bpf/progs/verifier_callx.c          | 3 ++-
+ tools/testing/selftests/bpf/progs/verifier_callx_rodata.c   | 3 ++-
+ 4 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/tools/testing/selftests/bpf/prog_tests/callx_func_ptr_map.c b/tools/testing/selftests/bpf/prog_tests/callx_func_ptr_map.c
+index 42b33d5876b1..cc63b84e4d94 100644
+--- a/tools/testing/selftests/bpf/prog_tests/callx_func_ptr_map.c
++++ b/tools/testing/selftests/bpf/prog_tests/callx_func_ptr_map.c
+@@ -8,7 +8,8 @@
+ #include <linux/filter.h>
+ #include <bpf/btf.h>
+ 
+-#if defined(__x86_64__) || defined(__aarch64__)
++#if defined(__x86_64__) || defined(__aarch64__) || \
++    (defined(__riscv) && __riscv_xlen == 64)
+ 
+ #define CALLEE_INSN	6
+ #define DATA		0x1234
+diff --git a/tools/testing/selftests/bpf/prog_tests/callx_rodata_lskel.c b/tools/testing/selftests/bpf/prog_tests/callx_rodata_lskel.c
+index fc5181c5b5ba..f6ef67c3141e 100644
+--- a/tools/testing/selftests/bpf/prog_tests/callx_rodata_lskel.c
++++ b/tools/testing/selftests/bpf/prog_tests/callx_rodata_lskel.c
+@@ -3,7 +3,8 @@
+ 
+ #include "callx_rodata.lskel.h"
+ 
+-#if defined(__x86_64__) || defined(__aarch64__)
++#if defined(__x86_64__) || defined(__aarch64__) || \
++    (defined(__riscv) && __riscv_xlen == 64)
+ 
+ static void run(int prog_fd, int expected, const char *name)
+ {
+diff --git a/tools/testing/selftests/bpf/progs/verifier_callx.c b/tools/testing/selftests/bpf/progs/verifier_callx.c
+index bc31d0221f6a..2ff2019e69e8 100644
+--- a/tools/testing/selftests/bpf/progs/verifier_callx.c
++++ b/tools/testing/selftests/bpf/progs/verifier_callx.c
+@@ -7,7 +7,8 @@
+ #include "../../../include/linux/filter.h"
+ 
+ /* gcc doesn't support indirect calls */
+-#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64)) && defined(__clang__)
++#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || \
++     (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)) && defined(__clang__)
+ 
+ #define CALLX_INSN(DST, SRC, OFF, IMM) \
+ 	BPF_RAW_INSN(BPF_JMP | BPF_CALL | BPF_X, DST, SRC, OFF, IMM)
+diff --git a/tools/testing/selftests/bpf/progs/verifier_callx_rodata.c b/tools/testing/selftests/bpf/progs/verifier_callx_rodata.c
+index db3169a1ddf6..952f97a84810 100644
+--- a/tools/testing/selftests/bpf/progs/verifier_callx_rodata.c
++++ b/tools/testing/selftests/bpf/progs/verifier_callx_rodata.c
+@@ -7,7 +7,8 @@
+ #include "../../../include/linux/filter.h"
+ 
+ /* gcc doesn't support indirect calls */
+-#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64)) && defined(__clang__)
++#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || \
++     (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)) && defined(__clang__)
+ 
+ /*
+  * Read-only data with pointers to functions, where the compiler puts tables
+-- 
+2.53.0
+
