@@ -1,0 +1,81 @@
+From 1db6da81c69fbc3cfb67705fec760a992441956c Mon Sep 17 00:00:00 2001
+From: Chen Pei <cp0613@linux.alibaba.com>
+Date: Wed, 23 Sep 2026 21:08:55 +0800
+Subject: [PATCH 1/2] bpf, riscv: Add support for indirect jumps
+
+Implement JIT support for the indirect jump instruction (BPF_JMP |
+BPF_JA | BPF_X), a.k.a. gotox, which lets a BPF program jump through a
+BPF_MAP_TYPE_INSN_ARRAY jump table.
+
+Emit "jalr zero, rd, 0" and hand the xlated to jitted offsets to
+bpf_prog_update_insn_ptrs(), which is what fills in the jump table
+entries; without that call the load fails with -EFAULT in
+bpf_insn_array_ready(). ctx->offset[] holds the offset of the insn
+*following* insn i, as bpf_prog_fill_jited_linfo() expects, so it is
+shifted by one and offset[0] comes from the prologue length. build_body()
+now records both halves of a multi-insn record, so no slot keeps a
+fabricated offset.
+
+Only the RV64 JIT is covered; RV32 keeps failing to load as before.
+
+Signed-off-by: Chen Pei <cp0613@linux.alibaba.com>
+---
+ arch/riscv/net/bpf_jit_comp64.c |  5 +++++
+ arch/riscv/net/bpf_jit_core.c   | 16 ++++++++++++++--
+ 2 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/arch/riscv/net/bpf_jit_comp64.c b/arch/riscv/net/bpf_jit_comp64.c
+index ed0a6f871dea..9de3749fb268 100644
+--- a/arch/riscv/net/bpf_jit_comp64.c
++++ b/arch/riscv/net/bpf_jit_comp64.c
+@@ -1691,6 +1691,11 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
+ 			emit_zextw(rd, rd, ctx);
+ 		break;
+ 
++	/* JUMP reg */
++	case BPF_JMP | BPF_JA | BPF_X:
++		emit_jalr(RV_REG_ZERO, rd, 0, ctx);
++		break;
++
+ 	/* JUMP off */
+ 	case BPF_JMP | BPF_JA:
+ 	case BPF_JMP32 | BPF_JA:
+diff --git a/arch/riscv/net/bpf_jit_core.c b/arch/riscv/net/bpf_jit_core.c
+index 470a6ace5662..d041e296fe22 100644
+--- a/arch/riscv/net/bpf_jit_core.c
++++ b/arch/riscv/net/bpf_jit_core.c
+@@ -26,10 +26,13 @@ static int build_body(struct rv_jit_context *ctx, bool extra_pass, int *offset)
+ 		int ret;
+ 
+ 		ret = bpf_jit_emit_insn(insn, ctx, extra_pass);
+-		if (ret > 0)
+-			i++; /* skip the next instruction */
+ 		if (offset)
+ 			offset[i] = ctx->ninsns;
++		if (ret > 0) {
++			i++; /* skip the next instruction */
++			if (offset)
++				offset[i] = ctx->ninsns;
++		}
+ 		if (ret < 0)
+ 			return ret;
+ 	}
+@@ -176,6 +179,15 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_verifier_env *env, struct bpf_pr
+ 		for (i = 0; i < prog->len; i++)
+ 			ctx->offset[i] = ninsns_rvoff(ctx->offset[i]);
+ 		bpf_prog_fill_jited_linfo(prog, ctx->offset);
++
++		/*
++		 * bpf_prog_update_insn_ptrs() wants the start of each insn, so
++		 * shift the linfo array by one and get insn 0 from the prologue.
++		 */
++		for (i = prog->len - 1; i > 0; i--)
++			ctx->offset[i] = ctx->offset[i - 1];
++		ctx->offset[0] = ninsns_rvoff(ctx->prologue_len);
++		bpf_prog_update_insn_ptrs(prog, ctx->offset, jit_data->ro_image);
+ out_offset:
+ 		kvfree(ctx->offset);
+ 		kfree(jit_data);
+-- 
+2.53.0
+

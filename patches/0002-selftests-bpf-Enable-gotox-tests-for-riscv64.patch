@@ -1,0 +1,44 @@
+From 29fb90c52916ad10f24854ec2e3ad5579de64c6d Mon Sep 17 00:00:00 2001
+From: Chen Pei <cp0613@linux.alibaba.com>
+Date: Wed, 23 Sep 2026 21:08:56 +0800
+Subject: [PATCH 2/2] selftests/bpf: Enable gotox tests for riscv64
+
+The riscv64 JIT now supports the gotox instruction and jump tables, so
+run the tests in verifier_gotox.c on riscv64 too, mirroring what was done
+for arm64 and powerpc.
+
+The guard is 64-bit only because the RV32 JIT does not implement gotox.
+
+Signed-off-by: Chen Pei <cp0613@linux.alibaba.com>
+---
+ tools/testing/selftests/bpf/progs/verifier_gotox.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/tools/testing/selftests/bpf/progs/verifier_gotox.c b/tools/testing/selftests/bpf/progs/verifier_gotox.c
+index f5a9878c7b8d..c9910e164b12 100644
+--- a/tools/testing/selftests/bpf/progs/verifier_gotox.c
++++ b/tools/testing/selftests/bpf/progs/verifier_gotox.c
+@@ -6,7 +6,9 @@
+ #include "bpf_misc.h"
+ #include "../../../include/linux/filter.h"
+ 
+-#if defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_powerpc)
++#if defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64) || \
++	defined(__TARGET_ARCH_powerpc) || \
++	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)
+ 
+ #define DEFINE_SIMPLE_JUMP_TABLE_PROG(NAME, SRC_REG, OFF, IMM, OUTCOME)	\
+ 									\
+@@ -580,6 +582,8 @@ nop_%=:								\
+ 	: __clobber_all);
+ }
+ 
+-#endif /* __TARGET_ARCH_x86 || __TARGET_ARCH_arm64 || __TARGET_ARCH_powerpc*/
++#endif /* __TARGET_ARCH_x86 || __TARGET_ARCH_arm64 ||
++	* __TARGET_ARCH_powerpc || __TARGET_ARCH_riscv
++	*/
+ 
+ char _license[] SEC("license") = "GPL";
+-- 
+2.53.0
+
