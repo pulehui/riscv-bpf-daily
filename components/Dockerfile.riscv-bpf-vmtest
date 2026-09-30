@@ -118,7 +118,7 @@ RUN git config --global --add safe.directory '*'
 # --------------------------------------------------------------------------
 # 7. Rootfs image and workspace
 # --------------------------------------------------------------------------
-COPY components/libbpf-vmtest-rootfs-2026.08.17-resolute-riscv64.tar.zst /root/
+COPY components/libbpf-vmtest-rootfs-2026.09.30-resolute-riscv64.tar.zst /root/
 
 VOLUME /workspace
 WORKDIR /workspace
