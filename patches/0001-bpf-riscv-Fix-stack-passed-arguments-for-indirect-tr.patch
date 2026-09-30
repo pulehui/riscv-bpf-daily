@@ -1,7 +1,7 @@
-From 049988bc546f4fdde80057d06fbd57309bacf3e4 Mon Sep 17 00:00:00 2001
+From 9530f12a63fb915e0794b57b44aefbc0ab67d698 Mon Sep 17 00:00:00 2001
 From: Kumar Kartikeya Dwivedi <memxor@gmail.com>
 Date: Sat, 22 Aug 2026 01:34:56 +0200
-Subject: [PATCH] bpf, riscv: Fix stack-passed arguments for indirect
+Subject: [PATCH 1/4] bpf, riscv: Fix stack-passed arguments for indirect
  trampolines
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -31,10 +31,10 @@ Signed-off-by: Kumar Kartikeya Dwivedi <memxor@gmail.com>
  1 file changed, 10 insertions(+), 4 deletions(-)
 
 diff --git a/arch/riscv/net/bpf_jit_comp64.c b/arch/riscv/net/bpf_jit_comp64.c
-index ed0a6f871dea..b5fa6338e5eb 100644
+index 9408bf7325c9..cf95a0a7b681 100644
 --- a/arch/riscv/net/bpf_jit_comp64.c
 +++ b/arch/riscv/net/bpf_jit_comp64.c
-@@ -895,7 +895,8 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type old_t,
+@@ -1056,7 +1056,8 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type old_t,
  	return ret;
  }
  
@@ -44,7 +44,7 @@ index ed0a6f871dea..b5fa6338e5eb 100644
  {
  	int i;
  
-@@ -903,8 +904,8 @@ static void store_args(int nr_arg_slots, int args_off, struct rv_jit_context *ct
+@@ -1064,8 +1065,8 @@ static void store_args(int nr_arg_slots, int args_off, struct rv_jit_context *ct
  		if (i < RV_MAX_REG_ARGS) {
  			emit_sd(RV_REG_FP, -args_off, RV_REG_A0 + i, ctx);
  		} else {
@@ -55,7 +55,7 @@ index ed0a6f871dea..b5fa6338e5eb 100644
  			emit_sd(RV_REG_FP, -args_off, RV_REG_T1, ctx);
  		}
  		args_off -= 8;
-@@ -1190,7 +1191,12 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
+@@ -1351,7 +1352,12 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
  	func_meta = nr_arg_slots;
  	emit_store_stack_imm64(RV_REG_T1, -func_meta_off, func_meta, ctx);
  

@@ -1,4 +1,4 @@
-From 468fc5c3c17447fc45d7cd565d124ecd8c26df41 Mon Sep 17 00:00:00 2001
+From d1488c851d3067cc565fb5c1916669b1a2e549a2 Mon Sep 17 00:00:00 2001
 From: Pu Lehui <pulehui@huawei.com>
 Date: Fri, 11 Sep 2026 21:56:24 +0800
 Subject: [PATCH 4/4] riscv64 deny

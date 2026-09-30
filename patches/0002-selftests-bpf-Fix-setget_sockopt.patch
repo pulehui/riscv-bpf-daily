@@ -1,0 +1,28 @@
+From 4ec53dc7fc72b27b9c444307f11784c46a9a6599 Mon Sep 17 00:00:00 2001
+From: Pu Lehui <pulehui@gmail.com>
+Date: Wed, 30 Sep 2026 11:45:06 +0800
+Subject: [PATCH 2/4] selftests/bpf: Fix setget_sockopt
+
+Signed-off-by: Pu Lehui <pulehui@gmail.com>
+---
+ tools/testing/selftests/bpf/progs/setget_sockopt.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/tools/testing/selftests/bpf/progs/setget_sockopt.c b/tools/testing/selftests/bpf/progs/setget_sockopt.c
+index d96e99b67aeb..95e6a337ab71 100644
+--- a/tools/testing/selftests/bpf/progs/setget_sockopt.c
++++ b/tools/testing/selftests/bpf/progs/setget_sockopt.c
+@@ -61,8 +61,8 @@ static const struct sockopt_test sol_tcp_tests[] = {
+ 	{ .opt = TCP_NOTSENT_LOWAT, .new = 1314, .expected = 1314, },
+ 	{ .opt = TCP_BPF_SOCK_OPS_CB_FLAGS, .new = BPF_SOCK_OPS_ALL_CB_FLAGS,
+ 	  .expected = BPF_SOCK_OPS_ALL_CB_FLAGS, },
+-	{ .opt = TCP_BPF_DELACK_MAX, .new = 30000, .expected = 30000, },
+-	{ .opt = TCP_BPF_RTO_MIN, .new = 30000, .expected = 30000, },
++	{ .opt = TCP_BPF_DELACK_MAX, .new = 40000, .expected = 40000, },
++	{ .opt = TCP_BPF_RTO_MIN, .new = 40000, .expected = 40000, },
+ 	{ .opt = TCP_RTO_MAX_MS, .new = 2000, .expected = 2000, },
+ 	{ .opt = 0, },
+ };
+-- 
+2.53.0
+
