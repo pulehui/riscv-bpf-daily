@@ -1,4 +1,4 @@
-From 0dcfaf0f8f8b56a41e013bb8b39c0870cc0e3f44 Mon Sep 17 00:00:00 2001
+From 1bc52447662f039695d5ef218b777a68a9440546 Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:11 +0530
 Subject: [PATCH 4/6] riscv, bpf: Split prologue and epilogue into helper
@@ -22,7 +22,7 @@ Signed-off-by: Varun R Mallya <varunrmallya@gmail.com>
  1 file changed, 87 insertions(+), 65 deletions(-)
 
 diff --git a/arch/riscv/net/bpf_jit_comp64.c b/arch/riscv/net/bpf_jit_comp64.c
-index ed0a6f871dea..6de4ba850191 100644
+index 788fcc21fd5b..2657da8c4db5 100644
 --- a/arch/riscv/net/bpf_jit_comp64.c
 +++ b/arch/riscv/net/bpf_jit_comp64.c
 @@ -197,9 +197,84 @@ static void emit_imm(u8 rd, s64 val, struct rv_jit_context *ctx)
@@ -126,7 +126,7 @@ index ed0a6f871dea..6de4ba850191 100644
  
  	emit_addi(RV_REG_SP, RV_REG_SP, stack_adjust, ctx);
  	/* Set return value. */
-@@ -2084,34 +2166,12 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
+@@ -2124,34 +2206,12 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
  
  void bpf_jit_build_prologue(struct rv_jit_context *ctx, bool is_subprog)
  {
@@ -162,7 +162,7 @@ index ed0a6f871dea..6de4ba850191 100644
  	/* emit kcfi type preamble immediately before the  first insn */
  	emit_kcfi(is_subprog ? cfi_bpf_subprog_hash : cfi_bpf_hash, ctx);
  
-@@ -2124,46 +2184,8 @@ void bpf_jit_build_prologue(struct rv_jit_context *ctx, bool is_subprog)
+@@ -2164,46 +2224,8 @@ void bpf_jit_build_prologue(struct rv_jit_context *ctx, bool is_subprog)
  	if (!is_subprog)
  		emit(rv_addi(RV_REG_TCC, RV_REG_ZERO, MAX_TAIL_CALL_CNT), ctx);
  

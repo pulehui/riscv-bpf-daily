@@ -1,4 +1,4 @@
-From 947696a7995cdc4bf0f04ad303a454cae7b47596 Mon Sep 17 00:00:00 2001
+From 323cfab55a96db15b6188f4adc04c5bc69dde2fa Mon Sep 17 00:00:00 2001
 From: Varun R Mallya <varunrmallya@gmail.com>
 Date: Wed, 22 Jul 2026 19:30:12 +0530
 Subject: [PATCH 5/6] riscv, bpf: Add support for BPF exceptions
@@ -30,7 +30,7 @@ Signed-off-by: Varun R Mallya <varunrmallya@gmail.com>
  1 file changed, 109 insertions(+), 3 deletions(-)
 
 diff --git a/arch/riscv/net/bpf_jit_comp64.c b/arch/riscv/net/bpf_jit_comp64.c
-index 6de4ba850191..9408bf7325c9 100644
+index 2657da8c4db5..b41b64101f55 100644
 --- a/arch/riscv/net/bpf_jit_comp64.c
 +++ b/arch/riscv/net/bpf_jit_comp64.c
 @@ -55,6 +55,29 @@ static const int pt_regmap[] = {
@@ -132,7 +132,7 @@ index 6de4ba850191..9408bf7325c9 100644
  
  	emit_addi(RV_REG_SP, RV_REG_SP, stack_adjust, ctx);
  	/* Set return value. */
-@@ -2164,6 +2243,15 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
+@@ -2204,6 +2283,15 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
  	return 0;
  }
  
@@ -148,7 +148,7 @@ index 6de4ba850191..9408bf7325c9 100644
  void bpf_jit_build_prologue(struct rv_jit_context *ctx, bool is_subprog)
  {
  	int i, stack_adjust, bpf_stack_adjust = ctx->stack_arg_sz;
-@@ -2184,8 +2272,17 @@ void bpf_jit_build_prologue(struct rv_jit_context *ctx, bool is_subprog)
+@@ -2224,8 +2312,17 @@ void bpf_jit_build_prologue(struct rv_jit_context *ctx, bool is_subprog)
  	if (!is_subprog)
  		emit(rv_addi(RV_REG_TCC, RV_REG_ZERO, MAX_TAIL_CALL_CNT), ctx);
  
@@ -168,7 +168,7 @@ index 6de4ba850191..9408bf7325c9 100644
  
  	if (bpf_stack_adjust)
  		emit_addi(RV_REG_S5, RV_REG_SP, bpf_stack_adjust, ctx);
-@@ -2280,3 +2377,12 @@ bool bpf_jit_supports_stack_args(void)
+@@ -2325,3 +2422,12 @@ bool bpf_jit_supports_callx(void)
  {
  	return true;
  }
