@@ -1,3 +1,4 @@
 # extra deny list for riscv64 bpf daily
+stacktrace_build_id				# kprobe hit in trap
 timer_async_cancel				# Flaky in qemu tcg
 tc_edt						# Flaky in qemu tcg
